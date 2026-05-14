@@ -4,14 +4,19 @@ library(h3o)
 library(here)
 library(mapgl)
 
+# ── Parameters ────────────────────────────────────────────────────────────────
+
 GDB_NAME <- "wfrc_se_2025_rtp23"
 
 CENTER_WEIGHT <- 0.50 # weight for the center cell
-RING1_WEIGHT <- 0.50 # total weight shared equally among k=1 neighbors
-RING2_WEIGHT <- 0.00 # total weight shared equally among k=2 neighbors
-# Note: CENTER_WEIGHT + RING1_WEIGHT + RING2_WEIGHT must equal 1
+RING1_WEIGHT <- 0.50 # total weight split equally among k=1 neighbors
+RING2_WEIGHT <- 0.00 # total weight split equally among k=2 neighbors
+RING3_WEIGHT <- 0.00 # total weight split equally among k=3 neighbors
+# Note: CENTER_WEIGHT + RING1_WEIGHT + RING2_WEIGHT + RING3_WEIGHT must equal 1
 
 root <- here::here()
+
+# ── Data ──────────────────────────────────────────────────────────────────────
 
 se_hex <- sf::read_sf(
   paste0("/vsizip/", file.path(root, "_data", paste0(GDB_NAME, ".gdb.zip"))),
@@ -27,9 +32,8 @@ id_to_row <- setNames(seq_len(nrow(se_hex)), se_hex$hex_id)
 
 h3_cells <- h3o::h3_from_strings(se_hex$hex_id)
 
-# k=2 disk gives center + ring1 + ring2; grid_distances tells us which ring
-all_disks <- h3o::grid_disk(h3_cells, k = 2)
-all_distances <- h3o::grid_distances(h3_cells, k = 2)
+all_disks <- h3o::grid_disk(h3_cells, k = 3)
+all_distances <- h3o::grid_distances(h3_cells, k = 3)
 
 pairs <- data.frame(
   center_id = rep(se_hex$hex_id, times = lengths(all_disks)),
@@ -45,6 +49,7 @@ pairs <- data.frame(
 # Count actual in-dataset neighbors per center per ring
 ring1_counts <- tapply(pairs$ring == 1, pairs$center_id, sum)
 ring2_counts <- tapply(pairs$ring == 2, pairs$center_id, sum)
+ring3_counts <- tapply(pairs$ring == 3, pairs$center_id, sum)
 
 pairs$weight <- ifelse(
   pairs$ring == 0,
@@ -52,7 +57,11 @@ pairs$weight <- ifelse(
   ifelse(
     pairs$ring == 1,
     RING1_WEIGHT / ring1_counts[pairs$center_id],
-    RING2_WEIGHT / ring2_counts[pairs$center_id]
+    ifelse(
+      pairs$ring == 2,
+      RING2_WEIGHT / ring2_counts[pairs$center_id],
+      RING3_WEIGHT / ring3_counts[pairs$center_id]
+    )
   )
 )
 
@@ -166,12 +175,12 @@ mapgl::compare(map_orig, map_smth, mode = "swipe", mousemove = FALSE)
 
 # ── Export ────────────────────────────────────────────────────────────────────
 
+gdb_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb"))
+zip_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
+
 if (!dir.exists(file.path(root, "_output"))) {
   dir.create(file.path(root, "_output"))
 }
-
-gdb_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb"))
-zip_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
 
 se_hex |>
   sf::write_sf(
