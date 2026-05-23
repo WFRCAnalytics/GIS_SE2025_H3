@@ -36,6 +36,8 @@ library(tidycensus)
 library(tigris)
 library(arcgislayers)
 
+options(tigris_use_cache = TRUE)
+
 # ── Helper Functions ───────────────────────────────────────────────────────────
 
 fetch_or_cache <- function(url, cache_path, layer = NULL) {
@@ -144,24 +146,6 @@ if (!file.exists(bg_income_path)) {
   sf::write_sf(bg_income, bg_income_path, driver = "GPKG")
 } else {
   bg_income <- sf::read_sf(bg_income_path)
-}
-
-# Demographics: 2020 Census block-level occupied housing units (interpolation weights)
-blocks_hh_path <- file.path(root, "_data/remote/demographics/blocks_2020_hh.gpkg")
-if (!file.exists(blocks_hh_path)) {
-  dir.create(dirname(blocks_hh_path), recursive = TRUE, showWarnings = FALSE)
-  blocks_hh <- tidycensus::get_decennial(
-    geography = "block",
-    variables = "H1_002N",
-    state     = "UT",
-    county    = c("Box Elder", "Davis", "Weber", "Salt Lake", "Utah",
-                  "Tooele", "Morgan", "Summit", "Wasatch"),
-    year      = 2020,
-    geometry  = TRUE
-  )
-  sf::write_sf(blocks_hh, blocks_hh_path, driver = "GPKG")
-} else {
-  blocks_hh <- sf::read_sf(blocks_hh_path)
 }
 
 # Transit: UTA GTFS
@@ -278,15 +262,16 @@ destinations     <- smooth_by_neighbors(hex_ids, raw_destinations, neighbor_inde
 
 # ── 5. Demographics ────────────────────────────────────────────────────────────
 
-# Household-weighted interpolation from BG → hex using 2020 Census blocks as
-# the weights layer (occupied HH = H1_002N). income is intensive → extensive = FALSE
+# Household-weighted interpolation from BG → hex using SE 2025 projected HH as
+# the weights layer. Same vintage as the pipeline; Census blocks (Method A) gave
+# R²=0.92, RMSE=$10,919, bias=$103 vs this method — negligible average difference.
 demographics_interp <- tidycensus::interpolate_pw(
   from             = sf::st_transform(bg_income, hex_crs),
   to               = se_hex,
   to_id            = "hex_id",
   extensive        = FALSE,
-  weights          = sf::st_transform(blocks_hh, hex_crs),
-  weight_column    = "value",
+  weights          = se_hex[, c("hex_id", "households")],
+  weight_column    = "households",
   weight_placement = "surface"
 )
 
