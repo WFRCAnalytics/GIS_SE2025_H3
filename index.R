@@ -96,12 +96,16 @@ flag_presence <- function(hex_sf, features_sf) {
 # ── Remote Data Fetch & Cache ──────────────────────────────────────────────────
 
 # Design
+# Note: the ArcGIS service stores sequential row numbers in hex_id, not H3 IDs.
+# Derive the H3 level-9 cell from each polygon centroid instead.
 intersection_hex <- fetch_or_cache(
   url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/Street_Intersection_Density_2025/FeatureServer/3",
   cache_path = "_data/remote/design/intersection_hex.gpkg"
 ) |>
-  dplyr::mutate(hex_id = as.character(hex_id)) |>
-  dplyr::filter(nchar(hex_id) == 15L)
+  (\(d) {
+    xy <- sf::st_coordinates(sf::st_centroid(sf::st_transform(d, 4326L)))
+    dplyr::mutate(d, hex_id = as.character(h3o::h3_from_xy(xy[, 1L], xy[, 2L], resolution = 9L)))
+  })()
 
 # Destinations
 center_boundaries <- fetch_or_cache(
@@ -369,10 +373,12 @@ se_hex$transit_dist_raw <- transit_dist_raw
 
 # ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
 
-## Aggregate SE from L9 → L8 (union geometries, sum count columns)
+## Aggregate SE from L9 → L8
 h8_ids_vec <- as.character(h3o::get_parents(h3o::h3_from_strings(hex_ids), resolution = 8L))
 
-se_l8 <- se_hex |>
+# Sum counts by L8 parent (drop geometry first — summarise on sf would dissolve
+# L9 polygons into irregular unions instead of clean H3 L8 hex boundaries)
+se_l8_data <- sf::st_drop_geometry(se_hex) |>
   dplyr::mutate(hex_id = h8_ids_vec) |>
   dplyr::select(hex_id, residential_units, total_jobs, households) |>
   dplyr::group_by(hex_id) |>
@@ -381,9 +387,16 @@ se_l8 <- se_hex |>
     total_jobs        = sum(total_jobs,        na.rm = TRUE),
     households        = sum(households,        na.rm = TRUE),
     .groups = "drop"
-  ) |>
-  sf::st_collection_extract("POLYGON") |>
-  sf::st_cast("MULTIPOLYGON")
+  )
+
+# Build true H3 L8 hex boundaries: vertex convex hull of each cell's 6 vertices
+h8_geom <- h3o::h3_from_strings(se_l8_data$hex_id) |>
+  h3o::h3_to_vertexes() |>
+  lapply(sf::st_convex_hull) |>
+  sf::st_sfc(crs = 4326L) |>
+  sf::st_transform(hex_crs)
+
+se_l8 <- sf::st_sf(se_l8_data, geometry = h8_geom)
 h8_ids <- se_l8$hex_id
 
 neighbor_index_l8 <- build_neighbor_index(h8_ids, L8_WEIGHTS)
