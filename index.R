@@ -617,7 +617,8 @@ compute_level_breaks <- function(sf_obj) {
     }
     brks <- classInt::classIntervals(vals, k, style = "jenks")$brks
     list(
-      breaks = as.list(round(brks[-c(1L, length(brks))], 8L)),
+      # I(unname()) strips H3-ID names and prevents auto_unbox on length-1 vectors
+      breaks = I(unname(round(brks[-c(1L, length(brks))], 8L))),
       min    = brks[[1L]],
       max    = brks[[length(brks)]]
     )

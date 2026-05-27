@@ -10,10 +10,21 @@ export interface ColorScale {
 
 export const NULL_COLOR = '#CCCCCC';
 
+// Normalize whatever shape R may have serialized breaks into (named-list object,
+// scalar number, or proper array) into a sorted number[].
+function toBreaksArray(raw: unknown): number[] {
+  if (Array.isArray(raw)) return (raw as number[]).slice().sort((a, b) => a - b);
+  if (typeof raw === 'number') return [raw];
+  if (raw != null && typeof raw === 'object')
+    return Object.values(raw as Record<string, number>).sort((a, b) => a - b);
+  return [];
+}
+
 export function buildColorScale(variable: DVariable, breakData: BreakData): ColorScale {
   const cfg = VARIABLE_CONFIGS[variable];
   const palette = cfg.invert ? [...cfg.palette].reverse() : cfg.palette;
-  const { breaks, min: domainMin } = breakData;
+  const breaks = toBreaksArray(breakData.breaks);
+  const domainMin = breakData.min;
 
   const k = Math.min(breaks.length + 1, palette.length);
   const pal = palette.slice(0, k);
