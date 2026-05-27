@@ -73,16 +73,29 @@ export function Sidebar({
 
       {/* Roads layer toggle */}
       <div style={styles.roadToggleWrap}>
-        <button
-          style={{ ...styles.roadToggle, ...(roadsAbove ? {} : styles.roadToggleActive) }}
-          onClick={() => onRoadsAboveChange(!roadsAbove)}
-          aria-pressed={!roadsAbove}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-            <path d="M2 6h8M2 3h8M2 9h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
-          Roads {roadsAbove ? 'above' : 'below'} hexes
-        </button>
+        <div style={styles.roadToggleRow}>
+          <div>
+            <div style={styles.roadToggleLabel}>Enable Roads</div>
+            <div style={styles.roadToggleSub}>
+              {roadsAbove ? 'Roads on top of hexes' : 'Roads below hexes'}
+            </div>
+          </div>
+          <button
+            role="switch"
+            aria-checked={roadsAbove}
+            aria-label="Enable Roads"
+            onClick={() => onRoadsAboveChange(!roadsAbove)}
+            style={{
+              ...styles.toggleTrack,
+              background: roadsAbove ? 'var(--color-primary)' : 'var(--color-border)',
+            }}
+          >
+            <span style={{
+              ...styles.toggleThumb,
+              transform: roadsAbove ? 'translateX(16px)' : 'translateX(0)',
+            }} />
+          </button>
+        </div>
       </div>
 
       {/* Footer */}
@@ -164,25 +177,43 @@ const styles: Record<string, React.CSSProperties> = {
     height: 4,
   },
   roadToggleWrap: {
-    padding: '4px 14px 8px',
+    padding: '6px 14px 10px',
   },
-  roadToggle: {
+  roadToggleRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: 5,
-    fontSize: 11,
-    fontWeight: 500,
-    color: 'var(--color-text-secondary)',
-    background: 'var(--color-surface-raised)',
-    border: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius)',
-    padding: '4px 8px',
-    cursor: 'pointer',
-    transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+    justifyContent: 'space-between',
+    gap: 8,
   },
-  roadToggleActive: {
-    background: 'var(--color-primary)',
-    color: 'white',
-    borderColor: 'var(--color-primary)',
+  roadToggleLabel: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: 'var(--color-text)',
+  },
+  roadToggleSub: {
+    fontSize: 10,
+    color: 'var(--color-text-disabled)',
+    marginTop: 1,
+  },
+  toggleTrack: {
+    width: 36,
+    height: 20,
+    borderRadius: 10,
+    padding: 2,
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  toggleThumb: {
+    width: 16,
+    height: 16,
+    borderRadius: '50%',
+    background: 'white',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+    transition: 'transform 0.2s',
+    display: 'block',
   },
 };

@@ -14,7 +14,7 @@ export function Legend({ variable, colorScale }: LegendProps) {
     return (
       <div style={styles.wrap}>
         <div style={styles.label}>{cfg.label}</div>
-        <div style={{ color: 'var(--color-text-disabled)', fontSize: 11 }}>No data</div>
+        <div style={{ color: 'var(--color-text-disabled)', fontSize: 11 }}>Not developed or Not applicable</div>
       </div>
     );
   }
@@ -41,8 +41,10 @@ export function Legend({ variable, colorScale }: LegendProps) {
         ))}
       </div>
       <div style={styles.unit}>{cfg.unit}</div>
-      <div style={{ ...styles.swatch, background: '#CCCCCC', width: 12, height: 12, borderRadius: 2, marginTop: 6, display: 'inline-block' }} />
-      <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginLeft: 4 }}>No data</span>
+      <div style={styles.naRow}>
+        <div style={{ ...styles.swatch, background: '#CCCCCC', width: 12, height: 12, borderRadius: 2, flexShrink: 0 }} />
+        <span style={styles.naLabel}>Not developed or Not applicable</span>
+      </div>
     </div>
   );
 }
@@ -88,5 +90,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 10,
     color: 'var(--color-text-disabled)',
     marginTop: 4,
+  },
+  naRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  naLabel: {
+    fontSize: 10,
+    color: 'var(--color-text-secondary)',
+    lineHeight: 1.3,
   },
 };
