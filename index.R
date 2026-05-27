@@ -396,7 +396,7 @@ h8_geom <- h3o::h3_from_strings(se_l8_data$hex_id) |>
   sf::st_sfc(crs = 4326L) |>
   sf::st_transform(hex_crs)
 
-se_l8 <- sf::st_sf(se_l8_data, geometry = h8_geom)
+se_l8 <- sf::st_sf(se_l8_data, geometry = sf::st_cast(h8_geom, "MULTIPOLYGON"))
 h8_ids <- se_l8$hex_id
 
 neighbor_index_l8 <- build_neighbor_index(h8_ids, L8_WEIGHTS)
