@@ -8,11 +8,11 @@ interface SwipeMapProps {
   sourceUrl: string | null;
   colorScale: ColorScale | null;
   roadsAbove?: boolean;
-  onHexClick?: (props: Record<string, unknown>) => void;
+  onHexHover?: (props: Record<string, unknown>) => void;
   onZoomChange?: (zoom: number) => void;
 }
 
-export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexClick, onZoomChange }: SwipeMapProps) {
+export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexHover, onZoomChange }: SwipeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dividerRef   = useRef<HTMLDivElement>(null);
   const [divX, setDivX] = useState<number | null>(null);
@@ -83,9 +83,9 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexClick,
     return () => el.removeEventListener('touchstart', handler);
   }, [startDrag]);
 
-  const handleHexClick = useCallback(
-    (props: Record<string, unknown>) => onHexClick?.(props),
-    [onHexClick]
+  const handleHexHover = useCallback(
+    (props: Record<string, unknown>) => onHexHover?.(props),
+    [onHexHover]
   );
 
   const clipPx = getClipPx();
@@ -102,7 +102,7 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexClick,
             sourceUrl={sourceUrl}
             colorExpression={colorScale?.smoothedExpression ?? null}
             roadsAbove={roadsAbove}
-            onHexClick={handleHexClick}
+            onHexHover={handleHexHover}
           />
         )}
       </div>
@@ -117,7 +117,7 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexClick,
             sourceUrl={sourceUrl}
             colorExpression={colorScale?.rawExpression ?? null}
             roadsAbove={roadsAbove}
-            onHexClick={handleHexClick}
+            onHexHover={handleHexHover}
           />
         )}
       </div>

@@ -110,9 +110,9 @@ intersection_hex <- fetch_or_cache(
 
 # Sum scores per L8 hex (handles the rare case of two polygons mapping to the same cell)
 int_l8 <- sf::st_drop_geometry(intersection_hex) |>
-  dplyr::select(h8_id, IntPtsPerM) |>
+  dplyr::select(h8_id, IntScore) |>
   dplyr::group_by(h8_id) |>
-  dplyr::summarise(IntPtsPerM = sum(IntPtsPerM, na.rm = TRUE), .groups = "drop")
+  dplyr::summarise(IntScore = sum(IntScore, na.rm = TRUE), .groups = "drop")
 
 # Divide score equally among each L8 cell's 7 L9 children.
 # flatten_h3 expands the H3Indexes list — same pattern as build_neighbor_index.
@@ -121,8 +121,8 @@ int_l9 <- tibble::tibble(
   h8_id  = rep(int_l8$h8_id, times = lengths(.children)),
   hex_id = as.character(h3o::flatten_h3(.children))
 ) |>
-  dplyr::left_join(dplyr::select(int_l8, h8_id, IntPtsPerM), by = "h8_id") |>
-  dplyr::transmute(hex_id, IntPtsPerM = IntPtsPerM / 7)
+  dplyr::left_join(dplyr::select(int_l8, h8_id, IntScore), by = "h8_id") |>
+  dplyr::transmute(hex_id, IntScore = IntScore / 7)
 rm(.children)
 
 # Destinations
@@ -295,7 +295,7 @@ diversity <- ifelse(hw == 0 | emp_s == 0, NA_real_, pmin(hw, emp_s) / pmax(hw, e
 ## Design — join L9 children expanded from int_l8
 design_raw <- tibble::tibble(hex_id = hex_ids) |>
   dplyr::left_join(int_l9, by = "hex_id") |>
-  dplyr::pull(IntPtsPerM)
+  dplyr::pull(IntScore)
 design <- smooth_by_neighbors(hex_ids, design_raw, neighbor_index)
 
 ## Destinations
@@ -437,7 +437,7 @@ diversity_l8 <- ifelse(hw_l8 == 0 | emp_s_l8 == 0, NA_real_, pmin(hw_l8, emp_s_l
 ## Design (L8) — direct join; int_l8 is already at L8 resolution
 design_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
   dplyr::left_join(int_l8, by = c("hex_id" = "h8_id")) |>
-  dplyr::pull(IntPtsPerM)
+  dplyr::pull(IntScore)
 design_l8 <- smooth_by_neighbors(h8_ids, design_raw_l8, neighbor_index_l8)
 
 ## Destinations (L8) — re-run intersection against L8 hexes

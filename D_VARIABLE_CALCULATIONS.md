@@ -198,8 +198,8 @@ utah_counties <- fetch_or_cache(
 #      - If IDs do not correspond → fall back to spatial join
 #   4. Document the finding in a comment above the join
 #
-# After joining IntPtsPerM to se_hex:
-# design <- smooth_by_neighbors(hex_ids, IntPtsPerM, neighbor_index)
+# After joining IntScore to se_hex:
+# design <- smooth_by_neighbors(hex_ids, IntScore, neighbor_index)
 # Hexes with no match from the join → NA
 ```
 

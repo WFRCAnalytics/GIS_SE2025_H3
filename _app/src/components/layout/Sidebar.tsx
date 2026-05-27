@@ -1,9 +1,8 @@
-import type { DVariable, HexLevel, LevelMode, PopupData } from '../../types';
+import type { DVariable, HexLevel, LevelMode } from '../../types';
 import type { ColorScale } from '../../lib/colorScale';
 import { VariableSelector } from '../ui/VariableSelector';
 import { LevelToggle } from '../ui/LevelToggle';
 import { Legend } from '../map/Legend';
-import { HexPopup } from '../map/HexPopup';
 import { VARIABLE_CONFIGS } from '../../constants';
 
 interface SidebarProps {
@@ -11,19 +10,16 @@ interface SidebarProps {
   level: HexLevel;
   levelMode: LevelMode;
   colorScale: ColorScale | null;
-  selectedHex: PopupData | null;
-  hexLoading: boolean;
   disabled: boolean;
   roadsAbove: boolean;
   onVariableChange: (v: DVariable) => void;
   onLevelModeChange: (mode: LevelMode) => void;
-  onCloseHex: () => void;
   onRoadsAboveChange: (v: boolean) => void;
 }
 
 export function Sidebar({
-  variable, level, levelMode, colorScale, selectedHex, hexLoading,
-  disabled, roadsAbove, onVariableChange, onLevelModeChange, onCloseHex, onRoadsAboveChange,
+  variable, level, levelMode, colorScale,
+  disabled, roadsAbove, onVariableChange, onLevelModeChange, onRoadsAboveChange,
 }: SidebarProps) {
   const cfg = VARIABLE_CONFIGS[variable];
   return (
@@ -66,20 +62,6 @@ export function Sidebar({
           Roads {roadsAbove ? 'above' : 'below'} hexes
         </button>
       </div>
-
-      <div style={styles.sep} />
-
-      {/* Hex popup */}
-      {(selectedHex || hexLoading) && (
-        <div style={styles.section}>
-          <HexPopup
-            data={selectedHex}
-            loading={hexLoading}
-            activeVariable={variable}
-            onClose={onCloseHex}
-          />
-        </div>
-      )}
 
       {/* Footer */}
       <div style={styles.footer}>

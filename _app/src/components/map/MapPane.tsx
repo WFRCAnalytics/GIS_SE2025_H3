@@ -25,6 +25,7 @@ export function MapPane({ mapRef, onReady, style }: MapPaneProps) {
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'imperial' }), 'bottom-left');
 
     // Push the top-right control group below the "Raw (Unsmoothed)" label (~36px tall).
     const ctrlContainer = map.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right');

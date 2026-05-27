@@ -7,7 +7,7 @@ interface HexLayerProps {
   sourceUrl: string | null;
   colorExpression: unknown[] | null;
   roadsAbove?: boolean;
-  onHexClick?: (props: Record<string, unknown>) => void;
+  onHexHover?: (props: Record<string, unknown>) => void;
 }
 
 const LAYER   = 'hexes';
@@ -48,16 +48,18 @@ function makeSlot(base: string, n: number): Slot {
   return { srcId: p, fillId: `${p}-fill`, lineId: `${p}-line`, hlId: `${p}-hl` };
 }
 
-export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove = true, onHexClick }: HexLayerProps) {
+export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove = true, onHexHover }: HexLayerProps) {
   const hoveredId      = useRef<string | null>(null);
   const colorExprRef   = useRef<unknown[] | null>(colorExpression);
   const roadsAboveRef  = useRef(roadsAbove);
+  const onHexHoverRef  = useRef(onHexHover);
   const currentSlot    = useRef<Slot | null>(null);
   const currentFillRef = useRef<string | null>(null);
   const counterRef     = useRef(0);
 
   colorExprRef.current  = colorExpression;
   roadsAboveRef.current = roadsAbove;
+  onHexHoverRef.current = onHexHover;
 
   useEffect(() => {
     if (!map || !sourceUrl) return;
@@ -131,6 +133,7 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
       hoveredId.current = id;
       map.setFeatureState(fs(id), { hover: true });
       map.getCanvas().style.cursor = 'pointer';
+      onHexHoverRef.current?.(e.features[0].properties as Record<string, unknown>);
     };
     const onMouseLeave = () => {
       if (hoveredId.current) {
@@ -170,19 +173,6 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
       hoveredId.current      = null;
     };
   }, [map, sourceId, sourceUrl]);
-
-  // Click handler — re-registers whenever the active slot changes
-  useEffect(() => {
-    if (!map || !onHexClick) return;
-    const fillId = currentFillRef.current;
-    if (!fillId) return;
-    const onClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-      if (!e.features?.length) return;
-      onHexClick(e.features[0].properties as Record<string, unknown>);
-    };
-    map.on('click', fillId, onClick);
-    return () => { map.off('click', fillId, onClick); };
-  }, [map, sourceId, sourceUrl, onHexClick]);
 
   // Roads above/below toggle — move existing layers without rebuilding the source
   useEffect(() => {

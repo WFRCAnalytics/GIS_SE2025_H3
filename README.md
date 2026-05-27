@@ -45,7 +45,16 @@ Ranges 0–1 (0 = pure residential or employment, 1 = perfectly balanced). `NA` 
 
 ### 3. Design
 
-Street intersection density (`IntPtsPerM`) from the WFRC Street Intersection Density 2025 layer, joined to H3 hexes and neighbor-smoothed.
+Street intersection score (`IntScore`) from the WFRC Street Intersection Density 2025 layer, joined to H3 hexes and neighbor-smoothed.
+
+`IntScore` is awarded per intersection within each hex polygon as follows:
+
+| Intersection type | Points | Rationale |
+|---|---|---|
+| 4-way (or higher) | 1.0 | Provides ≥ 2 additional route choices beyond going straight |
+| 3-way (T-intersection) | 0.5 | Provides 1 additional route choice |
+
+Scores are summed to the L8 hex, distributed equally among each hex's 7 L9 children, then neighbor-smoothed.
 
 ### 4. Destinations
 
@@ -141,7 +150,7 @@ The output GDB layer contains all original SE columns plus:
 |--------|------|-------------|
 | `density` | numeric | Persons + jobs equivalent per sq mi (smoothed) |
 | `diversity` | numeric | HH–job balance ratio 0–1 (smoothed) |
-| `design` | numeric | Intersection density (smoothed) |
+| `design` | numeric | Intersection score — IntScore (smoothed) |
 | `destinations` | numeric | WC center + amenity composite 0–1 (smoothed) |
 | `demographics` | numeric | Estimated median HH income, $ (smoothed) |
 | `transit_dist` | numeric | Distance to nearest frequent stop, miles (smoothed) |

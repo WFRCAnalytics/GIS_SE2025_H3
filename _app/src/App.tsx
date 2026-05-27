@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { SwipeMap } from './components/map/SwipeMap';
+import { HexInfoBox } from './components/map/HexInfoBox';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
 import { useData } from './hooks/useData';
 import { AUTO_LEVEL_ZOOM, DEFAULT_ZOOM } from './constants';
@@ -11,8 +12,8 @@ export default function App() {
   const [variable, setVariable]   = useState<DVariable>('density');
   const [levelMode, setLevelMode] = useState<LevelMode>('auto');
   const [mapZoom, setMapZoom]     = useState<number>(DEFAULT_ZOOM);
-  const [selectedHex, setSelectedHex] = useState<PopupData | null>(null);
-  const [roadsAbove, setRoadsAbove]   = useState<boolean>(true);
+  const [hoveredHex, setHoveredHex] = useState<PopupData | null>(null);
+  const [roadsAbove, setRoadsAbove] = useState<boolean>(true);
 
   const level: HexLevel = levelMode === 'auto'
     ? (mapZoom >= AUTO_LEVEL_ZOOM ? 'l9' : 'l8')
@@ -20,10 +21,9 @@ export default function App() {
 
   const { status, sourceUrl, colorScale, error } = useData(variable, level);
 
-  // Popup data comes directly from MapLibre feature properties — no async query needed
-  const handleHexClick = useCallback((props: Record<string, unknown>) => {
+  const handleHexHover = useCallback((props: Record<string, unknown>) => {
     const num = (v: unknown) => (v == null || v === '' ? null : Number(v));
-    setSelectedHex({
+    setHoveredHex({
       hex_id:           String(props.hex_id ?? ''),
       density:          num(props.density),          density_raw:      num(props.density_raw),
       diversity:        num(props.diversity),        diversity_raw:    num(props.diversity_raw),
@@ -36,7 +36,7 @@ export default function App() {
 
   const handleLevelModeChange = useCallback((mode: LevelMode) => {
     setLevelMode(mode);
-    setSelectedHex(null);
+    setHoveredHex(null);
   }, []);
 
   const handleZoomChange = useCallback((zoom: number) => {
@@ -54,13 +54,10 @@ export default function App() {
           level={level}
           levelMode={levelMode}
           colorScale={colorScale}
-          selectedHex={selectedHex}
-          hexLoading={false}
           disabled={isLoading}
           roadsAbove={roadsAbove}
           onVariableChange={setVariable}
           onLevelModeChange={handleLevelModeChange}
-          onCloseHex={() => setSelectedHex(null)}
           onRoadsAboveChange={setRoadsAbove}
         />
         <div style={styles.mapArea}>
@@ -68,9 +65,10 @@ export default function App() {
             sourceUrl={sourceUrl}
             colorScale={colorScale}
             roadsAbove={roadsAbove}
-            onHexClick={handleHexClick}
+            onHexHover={handleHexHover}
             onZoomChange={handleZoomChange}
           />
+          <HexInfoBox data={hoveredHex} activeVariable={variable} />
           {isLoading && <LoadingOverlay status={status} error={null} />}
           {status === 'error' && <LoadingOverlay status={status} error={error} />}
         </div>
