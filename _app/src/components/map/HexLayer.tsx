@@ -7,6 +7,7 @@ interface HexLayerProps {
   sourceUrl: string | null;
   colorExpression: unknown[] | null;
   roadsAbove?: boolean;
+  opacity?: number;
   onHexHover?: (props: Record<string, unknown>) => void;
 }
 
@@ -48,10 +49,11 @@ function makeSlot(base: string, n: number): Slot {
   return { srcId: p, fillId: `${p}-fill`, lineId: `${p}-line`, hlId: `${p}-hl` };
 }
 
-export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove = true, onHexHover }: HexLayerProps) {
+export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove = true, opacity = OPACITY, onHexHover }: HexLayerProps) {
   const hoveredId      = useRef<string | null>(null);
   const colorExprRef   = useRef<unknown[] | null>(colorExpression);
   const roadsAboveRef  = useRef(roadsAbove);
+  const opacityRef     = useRef(opacity);
   const onHexHoverRef  = useRef(onHexHover);
   const currentSlot    = useRef<Slot | null>(null);
   const currentFillRef = useRef<string | null>(null);
@@ -59,6 +61,7 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
 
   colorExprRef.current  = colorExpression;
   roadsAboveRef.current = roadsAbove;
+  opacityRef.current    = opacity;
   onHexHoverRef.current = onHexHover;
 
   useEffect(() => {
@@ -120,7 +123,7 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         map.setPaintProperty(slot.fillId, 'fill-color', colorExprRef.current as any);
       }
-      map.setPaintProperty(slot.fillId, 'fill-opacity', OPACITY);
+      map.setPaintProperty(slot.fillId, 'fill-opacity', opacityRef.current);
     }, 30);
 
     // Hover
@@ -193,6 +196,19 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     map.setPaintProperty(fillId, 'fill-color', colorExpression as any);
   }, [map, colorExpression, sourceId]);
+
+  // Opacity slider — bypass the CSS transition so drags feel instant.
+  // Deliberately excludes sourceId: new slots get opacity from opacityRef
+  // inside the fade-in timer; adding sourceId here would skip the fade-in.
+  useEffect(() => {
+    if (!map) return;
+    const fillId = currentFillRef.current;
+    if (!fillId || !map.getLayer(fillId)) return;
+    map.setPaintProperty(fillId, 'fill-opacity-transition', { duration: 0, delay: 0 });
+    map.setPaintProperty(fillId, 'fill-opacity', opacity);
+    map.setPaintProperty(fillId, 'fill-opacity-transition', { duration: FADE_MS, delay: 0 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, opacity]);
 
   return null;
 }

@@ -8,11 +8,12 @@ interface SwipeMapProps {
   sourceUrl: string | null;
   colorScale: ColorScale | null;
   roadsAbove?: boolean;
+  opacity?: number;
   onHexHover?: (props: Record<string, unknown>) => void;
   onZoomChange?: (zoom: number) => void;
 }
 
-export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexHover, onZoomChange }: SwipeMapProps) {
+export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, opacity, onHexHover, onZoomChange }: SwipeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dividerRef   = useRef<HTMLDivElement>(null);
   const [divX, setDivX] = useState<number | null>(null);
@@ -102,6 +103,7 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexHover,
             sourceUrl={sourceUrl}
             colorExpression={colorScale?.smoothedExpression ?? null}
             roadsAbove={roadsAbove}
+            opacity={opacity}
             onHexHover={handleHexHover}
           />
         )}
@@ -117,6 +119,7 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexHover,
             sourceUrl={sourceUrl}
             colorExpression={colorScale?.rawExpression ?? null}
             roadsAbove={roadsAbove}
+            opacity={opacity}
             onHexHover={handleHexHover}
           />
         )}

@@ -12,14 +12,16 @@ interface SidebarProps {
   colorScale: ColorScale | null;
   disabled: boolean;
   roadsAbove: boolean;
+  hexOpacity: number;
   onVariableChange: (v: DVariable) => void;
   onLevelModeChange: (mode: LevelMode) => void;
   onRoadsAboveChange: (v: boolean) => void;
+  onOpacityChange: (v: number) => void;
 }
 
 export function Sidebar({
   variable, level, levelMode, colorScale,
-  disabled, roadsAbove, onVariableChange, onLevelModeChange, onRoadsAboveChange,
+  disabled, roadsAbove, hexOpacity, onVariableChange, onLevelModeChange, onRoadsAboveChange, onOpacityChange,
 }: SidebarProps) {
   const cfg = VARIABLE_CONFIGS[variable];
   return (
@@ -40,6 +42,26 @@ export function Sidebar({
       <div style={styles.section}>
         <Legend variable={variable} colorScale={colorScale} />
       </div>
+
+      {/* Hex opacity slider */}
+      <div style={styles.section}>
+        <div style={styles.sliderRow}>
+          <span style={styles.sliderLabel}>Hex Opacity</span>
+          <span style={styles.sliderValue}>{Math.round(hexOpacity * 100)}%</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={Math.round(hexOpacity * 100)}
+          onChange={e => onOpacityChange(Number(e.target.value) / 100)}
+          style={styles.slider}
+          aria-label="Hex layer opacity"
+        />
+      </div>
+
+      <div style={styles.sep} />
 
       {/* Swipe hint */}
       <div style={styles.hint}>
@@ -113,6 +135,33 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-text-disabled)',
     lineHeight: 1.6,
     borderTop: '1px solid var(--color-border)',
+  },
+  sliderRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  sliderLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--color-text-secondary)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.04em',
+  },
+  sliderValue: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--color-primary)',
+    fontVariantNumeric: 'tabular-nums',
+    minWidth: 32,
+    textAlign: 'right' as const,
+  },
+  slider: {
+    width: '100%',
+    accentColor: 'var(--color-primary)',
+    cursor: 'pointer',
+    height: 4,
   },
   roadToggleWrap: {
     padding: '4px 14px 8px',
