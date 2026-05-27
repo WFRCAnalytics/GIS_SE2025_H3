@@ -7,6 +7,7 @@ export type DVariable =
   | 'transit_dist';
 
 export type HexLevel = 'l9' | 'l8';
+export type LevelMode = 'auto' | HexLevel;
 
 export interface BreakData {
   breaks: number[];

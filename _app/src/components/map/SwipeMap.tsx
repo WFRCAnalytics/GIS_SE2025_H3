@@ -8,9 +8,10 @@ interface SwipeMapProps {
   sourceUrl: string | null;
   colorScale: ColorScale | null;
   onHexClick?: (props: Record<string, unknown>) => void;
+  onZoomChange?: (zoom: number) => void;
 }
 
-export function SwipeMap({ sourceUrl, colorScale, onHexClick }: SwipeMapProps) {
+export function SwipeMap({ sourceUrl, colorScale, onHexClick, onZoomChange }: SwipeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [divX, setDivX] = useState<number | null>(null);
   const [leftReady, setLeftReady]   = useState(false);
@@ -22,6 +23,15 @@ export function SwipeMap({ sourceUrl, colorScale, onHexClick }: SwipeMapProps) {
     const cleanup = attachSync();
     return cleanup;
   }, [leftReady, rightReady, attachSync]);
+
+  useEffect(() => {
+    if (!leftReady || !onZoomChange) return;
+    const map = leftRef.current;
+    if (!map) return;
+    const handler = () => onZoomChange(map.getZoom());
+    map.on('zoom', handler);
+    return () => { map.off('zoom', handler); };
+  }, [leftReady, leftRef, onZoomChange]);
 
   useEffect(() => {
     requestAnimationFrame(() => {

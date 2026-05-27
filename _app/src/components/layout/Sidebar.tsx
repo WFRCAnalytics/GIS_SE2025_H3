@@ -1,4 +1,4 @@
-import type { DVariable, HexLevel, PopupData } from '../../types';
+import type { DVariable, HexLevel, LevelMode, PopupData } from '../../types';
 import type { ColorScale } from '../../lib/colorScale';
 import { VariableSelector } from '../ui/VariableSelector';
 import { LevelToggle } from '../ui/LevelToggle';
@@ -9,18 +9,19 @@ import { VARIABLE_CONFIGS } from '../../constants';
 interface SidebarProps {
   variable: DVariable;
   level: HexLevel;
+  levelMode: LevelMode;
   colorScale: ColorScale | null;
   selectedHex: PopupData | null;
   hexLoading: boolean;
   disabled: boolean;
   onVariableChange: (v: DVariable) => void;
-  onLevelChange: (l: HexLevel) => void;
+  onLevelModeChange: (mode: LevelMode) => void;
   onCloseHex: () => void;
 }
 
 export function Sidebar({
-  variable, level, colorScale, selectedHex, hexLoading,
-  disabled, onVariableChange, onLevelChange, onCloseHex,
+  variable, level, levelMode, colorScale, selectedHex, hexLoading,
+  disabled, onVariableChange, onLevelModeChange, onCloseHex,
 }: SidebarProps) {
   const cfg = VARIABLE_CONFIGS[variable];
   return (
@@ -29,7 +30,7 @@ export function Sidebar({
       <div style={styles.section}>
         <VariableSelector value={variable} onChange={onVariableChange} />
         <div style={styles.sep} />
-        <LevelToggle value={level} onChange={onLevelChange} disabled={disabled} />
+        <LevelToggle mode={levelMode} activeLevel={level} onChange={onLevelModeChange} disabled={disabled} />
       </div>
 
       {/* Description */}

@@ -1,37 +1,45 @@
-import type { HexLevel } from '../../types';
+import type { HexLevel, LevelMode } from '../../types';
 
 interface LevelToggleProps {
-  value: HexLevel;
-  onChange: (l: HexLevel) => void;
+  mode: LevelMode;
+  activeLevel: HexLevel;
+  onChange: (mode: LevelMode) => void;
   disabled?: boolean;
 }
 
-const LEVELS: Array<{ id: HexLevel; label: string; detail: string }> = [
-  { id: 'l9', label: 'Level 9', detail: '~0.04 mi²' },
-  { id: 'l8', label: 'Level 8', detail: '~0.28 mi²' },
+const OPTIONS: Array<{ id: LevelMode; label: string; detail?: string }> = [
+  { id: 'l8', label: 'L8', detail: '~0.28 mi²' },
+  { id: 'auto', label: 'Auto' },
+  { id: 'l9', label: 'L9', detail: '~0.04 mi²' },
 ];
 
-export function LevelToggle({ value, onChange, disabled }: LevelToggleProps) {
+export function LevelToggle({ mode, activeLevel, onChange, disabled }: LevelToggleProps) {
   return (
     <div style={styles.wrap}>
       <div style={styles.sectionLabel}>H3 Resolution</div>
       <div style={styles.toggle}>
-        {LEVELS.map(lv => (
-          <button
-            key={lv.id}
-            onClick={() => onChange(lv.id)}
-            disabled={disabled}
-            style={{
-              ...styles.btn,
-              ...(value === lv.id ? styles.btnActive : {}),
-              ...(disabled ? styles.btnDisabled : {}),
-            }}
-            aria-pressed={value === lv.id}
-          >
-            <span style={styles.btnLabel}>{lv.label}</span>
-            <span style={styles.btnDetail}>{lv.detail}</span>
-          </button>
-        ))}
+        {OPTIONS.map(opt => {
+          const isActive = opt.id === mode;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => onChange(opt.id)}
+              disabled={disabled}
+              style={{
+                ...styles.btn,
+                ...(isActive ? styles.btnActive : {}),
+                ...(disabled ? styles.btnDisabled : {}),
+              }}
+              aria-pressed={isActive}
+            >
+              <span style={styles.btnLabel}>{opt.label}</span>
+              {opt.id === 'auto'
+                ? <span style={styles.btnDetail}>{activeLevel === 'l8' ? 'L8 active' : 'L9 active'}</span>
+                : <span style={styles.btnDetail}>{opt.detail}</span>
+              }
+            </button>
+          );
+        })}
       </div>
     </div>
   );

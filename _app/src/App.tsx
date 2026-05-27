@@ -4,12 +4,18 @@ import { Sidebar } from './components/layout/Sidebar';
 import { SwipeMap } from './components/map/SwipeMap';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
 import { useData } from './hooks/useData';
-import type { DVariable, HexLevel, PopupData } from './types';
+import { AUTO_LEVEL_ZOOM, DEFAULT_ZOOM } from './constants';
+import type { DVariable, HexLevel, LevelMode, PopupData } from './types';
 
 export default function App() {
-  const [variable, setVariable] = useState<DVariable>('density');
-  const [level, setLevel]       = useState<HexLevel>('l9');
+  const [variable, setVariable]   = useState<DVariable>('density');
+  const [levelMode, setLevelMode] = useState<LevelMode>('auto');
+  const [mapZoom, setMapZoom]     = useState<number>(DEFAULT_ZOOM);
   const [selectedHex, setSelectedHex] = useState<PopupData | null>(null);
+
+  const level: HexLevel = levelMode === 'auto'
+    ? (mapZoom >= AUTO_LEVEL_ZOOM ? 'l9' : 'l8')
+    : levelMode;
 
   const { status, sourceUrl, colorScale, error } = useData(variable, level);
 
@@ -27,9 +33,13 @@ export default function App() {
     });
   }, []);
 
-  const handleLevelChange = useCallback((l: HexLevel) => {
-    setLevel(l);
+  const handleLevelModeChange = useCallback((mode: LevelMode) => {
+    setLevelMode(mode);
     setSelectedHex(null);
+  }, []);
+
+  const handleZoomChange = useCallback((zoom: number) => {
+    setMapZoom(zoom);
   }, []);
 
   const isLoading = status === 'initializing' || status === 'refreshing';
@@ -41,12 +51,13 @@ export default function App() {
         <Sidebar
           variable={variable}
           level={level}
+          levelMode={levelMode}
           colorScale={colorScale}
           selectedHex={selectedHex}
           hexLoading={false}
           disabled={isLoading}
           onVariableChange={setVariable}
-          onLevelChange={handleLevelChange}
+          onLevelModeChange={handleLevelModeChange}
           onCloseHex={() => setSelectedHex(null)}
         />
         <div style={styles.mapArea}>
@@ -54,6 +65,7 @@ export default function App() {
             sourceUrl={sourceUrl}
             colorScale={colorScale}
             onHexClick={handleHexClick}
+            onZoomChange={handleZoomChange}
           />
           {isLoading && <LoadingOverlay status={status} error={null} />}
           {status === 'error' && <LoadingOverlay status={status} error={error} />}

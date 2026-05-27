@@ -616,7 +616,7 @@ export_geojson(se_l8,  file.path(app_data_dir, "l8.geojson"))
 
 # Pre-compute Jenks breaks for each variable (combined smoothed + raw so both
 # map sides are on the same scale for honest visual comparison)
-N_BREAKS <- 7L
+N_BREAKS <- 9L
 
 compute_level_breaks <- function(sf_obj) {
   df   <- sf::st_drop_geometry(sf_obj)
