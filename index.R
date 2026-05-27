@@ -585,9 +585,7 @@ zip(zip_path, files = gdb_path, flags = "-r9X")
 unlink(gdb_path, recursive = TRUE)
 
 # ── Web App Data Export ─────────────────────────────────────────────────────────
-# GeoJSON loaded directly by MapLibre (fetched + parsed in MapLibre's own Worker).
-# metadata.json carries pre-computed Jenks breaks so the browser has zero heavy
-# computation at startup.
+# PMTiles for the map app; metadata.json carries Jenks breaks for the color scale.
 
 app_data_dir <- file.path(root, "_app", "public", "data")
 dir.create(app_data_dir, recursive = TRUE, showWarnings = FALSE)
@@ -602,17 +600,18 @@ app_cols <- c(
   "transit_dist", "transit_dist_raw"
 )
 
-# Export GeoJSON — MapLibre fetches by URL and parses in its own Worker
-export_geojson <- function(sf_obj, dest_path) {
+# Export PMTiles — viewport-aware tiles for faster web app loading.
+# freestiler uses a Rust backend; no external CLI needed on any OS.
+export_pmtiles <- function(sf_obj, dest_path, min_zoom, max_zoom) {
   sf_obj |>
     sf::st_transform(4326L) |>
     dplyr::select(dplyr::all_of(app_cols)) |>
-    sf::st_write(dest_path, driver = "GeoJSON", delete_dsn = TRUE,
-      layer_options = c("COORDINATE_PRECISION=6", "RFC7946=YES"))
+    freestiler::freestile(output = dest_path, layer_name = "hexes",
+                          min_zoom = min_zoom, max_zoom = max_zoom)
 }
 
-export_geojson(se_hex, file.path(app_data_dir, "l9.geojson"))
-export_geojson(se_l8,  file.path(app_data_dir, "l8.geojson"))
+export_pmtiles(se_hex, file.path(app_data_dir, "l9.pmtiles"), min_zoom = 9L,  max_zoom = 14L)
+export_pmtiles(se_l8,  file.path(app_data_dir, "l8.pmtiles"), min_zoom = 6L,  max_zoom = 13L)
 
 # Pre-compute Jenks breaks for each variable (combined smoothed + raw so both
 # map sides are on the same scale for honest visual comparison)

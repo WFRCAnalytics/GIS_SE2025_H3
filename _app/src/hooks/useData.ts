@@ -38,7 +38,8 @@ export function useData(variable: DVariable, level: HexLevel): DataResult {
       .then(meta => {
         if (cancelled) return;
         const scale = buildColorScale(variable, meta[level][variable]);
-        setSourceUrl(`${BASE_URL}data/${level}.geojson`);
+        const abs = new URL(`${BASE_URL}data/${level}.pmtiles`, window.location.href).href;
+        setSourceUrl(`pmtiles://${abs}`);
         setColorScale(scale);
         setError(null);
         setStatus('ready');
