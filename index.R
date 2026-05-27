@@ -343,13 +343,29 @@ nearest_col      <- apply(dist_mat, 1L, which.min)
 transit_dist_raw <- as.numeric(dist_mat[cbind(seq_len(nrow(se_hex)), nearest_col)]) / 1609.34
 transit_dist     <- smooth_by_neighbors(hex_ids, transit_dist_raw, neighbor_index)
 
+## Raw (unsmoothed) L9 values
+density_raw   <- (se_hex$residential_units + se_hex$total_jobs / J2H) / L9_HEX_AREA_SQMI
+density_raw[hex_ids %in% na_hex_ids] <- NA_real_
+
+hw_raw        <- se_hex$households * J2H
+diversity_raw <- ifelse(hw_raw == 0 | se_hex$total_jobs == 0, NA_real_,
+  pmin(hw_raw, se_hex$total_jobs) / pmax(hw_raw, se_hex$total_jobs))
+
+destinations_raw <- raw_destinations  # alias: raw_destinations computed at line 310
+
 ## Assemble L9
-se_hex$density      <- density
-se_hex$diversity    <- diversity
-se_hex$design       <- design
-se_hex$destinations <- destinations
-se_hex$demographics <- demographics
-se_hex$transit_dist <- transit_dist
+se_hex$density          <- density
+se_hex$density_raw      <- density_raw
+se_hex$diversity        <- diversity
+se_hex$diversity_raw    <- diversity_raw
+se_hex$design           <- design
+se_hex$design_raw       <- design_raw
+se_hex$destinations     <- destinations
+se_hex$destinations_raw <- destinations_raw
+se_hex$demographics     <- demographics
+se_hex$demographics_raw <- demographics_raw
+se_hex$transit_dist     <- transit_dist
+se_hex$transit_dist_raw <- transit_dist_raw
 
 # ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
 
@@ -464,36 +480,44 @@ nearest_col_l8      <- apply(dist_mat_l8, 1L, which.min)
 transit_dist_raw_l8 <- as.numeric(dist_mat_l8[cbind(seq_len(nrow(se_l8)), nearest_col_l8)]) / 1609.34
 transit_dist_l8     <- smooth_by_neighbors(h8_ids, transit_dist_raw_l8, neighbor_index_l8)
 
+## Raw (unsmoothed) L8 values
+density_raw_l8   <- (se_l8$residential_units + se_l8$total_jobs / J2H) / L8_HEX_AREA_SQMI
+density_raw_l8[h8_ids %in% na_hex_ids] <- NA_real_
+
+hw_raw_l8        <- se_l8$households * J2H
+diversity_raw_l8 <- ifelse(hw_raw_l8 == 0 | se_l8$total_jobs == 0, NA_real_,
+  pmin(hw_raw_l8, se_l8$total_jobs) / pmax(hw_raw_l8, se_l8$total_jobs))
+
 ## Assemble L8
-se_l8$density      <- density_l8
-se_l8$diversity    <- diversity_l8
-se_l8$design       <- design_l8
-se_l8$destinations <- destinations_l8
-se_l8$demographics <- demographics_l8
-se_l8$transit_dist <- transit_dist_l8
+se_l8$density          <- density_l8
+se_l8$density_raw      <- density_raw_l8
+se_l8$diversity        <- diversity_l8
+se_l8$diversity_raw    <- diversity_raw_l8
+se_l8$design           <- design_l8
+se_l8$design_raw       <- design_raw_l8
+se_l8$destinations     <- destinations_l8
+se_l8$destinations_raw <- raw_destinations_l8
+se_l8$demographics     <- demographics_l8
+se_l8$demographics_raw <- demographics_raw_l8
+se_l8$transit_dist     <- transit_dist_l8
+se_l8$transit_dist_raw <- transit_dist_raw_l8
 
 # ── Visualization: Diversity — smoothed vs raw (L9) ───────────────────────────
 
 se_hex_4326 <- sf::st_transform(se_hex, 4326L)
 
-hw_raw               <- se_hex$households * J2H
-diversity_unsmoothed <- ifelse(
-  hw_raw == 0 | se_hex$total_jobs == 0, NA_real_,
-  pmin(hw_raw, se_hex$total_jobs) / pmax(hw_raw, se_hex$total_jobs)
-)
-
 se_hex_4326$tooltip <- sprintf(
   "<b>Diversity (smoothed):</b> %.2f<br><b>Diversity (raw):</b> %.2f<br><b>HH:</b> %.0f<br><b>Jobs:</b> %.0f",
-  se_hex$diversity, diversity_unsmoothed, se_hex$households, se_hex$total_jobs
+  se_hex$diversity, se_hex$diversity_raw, se_hex$households, se_hex$total_jobs
 )
 
 se_hex_raw_4326           <- se_hex_4326
-se_hex_raw_4326$diversity <- diversity_unsmoothed
+se_hex_raw_4326$diversity <- se_hex$diversity_raw
 
 div_colors <- c("#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c",
                 "#fc4e2a","#e31a1c","#bd0026","#800026")
 div_scale  <- mapgl::step_quantile(
-  data_values = c(se_hex_4326$diversity, diversity_unsmoothed),
+  data_values = c(se_hex_4326$diversity, se_hex$diversity_raw),
   column      = "diversity",
   n           = length(div_colors),
   colors      = div_colors,
@@ -546,3 +570,64 @@ sf::write_sf(se_l8,  gdb_path, layer = paste0(GDB_NAME, "_l8"), driver = "OpenFi
 
 zip(zip_path, files = gdb_path, flags = "-r9X")
 unlink(gdb_path, recursive = TRUE)
+
+# ── Web App Data Export ─────────────────────────────────────────────────────────
+# GeoJSON loaded directly by MapLibre (fetched + parsed in MapLibre's own Worker).
+# metadata.json carries pre-computed Jenks breaks so the browser has zero heavy
+# computation at startup.
+
+app_data_dir <- file.path(root, "_app", "public", "data")
+dir.create(app_data_dir, recursive = TRUE, showWarnings = FALSE)
+
+app_cols <- c(
+  "hex_id",
+  "density",      "density_raw",
+  "diversity",    "diversity_raw",
+  "design",       "design_raw",
+  "destinations", "destinations_raw",
+  "demographics", "demographics_raw",
+  "transit_dist", "transit_dist_raw"
+)
+
+# Export GeoJSON — MapLibre fetches by URL and parses in its own Worker
+export_geojson <- function(sf_obj, dest_path) {
+  sf_obj |>
+    sf::st_transform(4326L) |>
+    dplyr::select(dplyr::all_of(app_cols)) |>
+    sf::st_write(dest_path, driver = "GeoJSON", delete_dsn = TRUE,
+      layer_options = c("COORDINATE_PRECISION=6", "RFC7946=YES"))
+}
+
+export_geojson(se_hex, file.path(app_data_dir, "l9.geojson"))
+export_geojson(se_l8,  file.path(app_data_dir, "l8.geojson"))
+
+# Pre-compute Jenks breaks for each variable (combined smoothed + raw so both
+# map sides are on the same scale for honest visual comparison)
+N_BREAKS <- 7L
+
+compute_level_breaks <- function(sf_obj) {
+  df   <- sf::st_drop_geometry(sf_obj)
+  vars <- c("density", "diversity", "design", "destinations", "demographics", "transit_dist")
+  lapply(setNames(vars, vars), function(v) {
+    vals <- c(df[[v]], df[[paste0(v, "_raw")]])
+    vals <- vals[!is.na(vals) & is.finite(vals)]
+    k    <- min(N_BREAKS, length(unique(vals)))
+    if (k < 2L) {
+      return(list(breaks = numeric(0), min = min(vals, na.rm = TRUE), max = max(vals, na.rm = TRUE)))
+    }
+    brks <- classInt::classIntervals(vals, k, style = "jenks")$brks
+    list(
+      breaks = as.list(round(brks[-c(1L, length(brks))], 8L)),
+      min    = brks[[1L]],
+      max    = brks[[length(brks)]]
+    )
+  })
+}
+
+metadata <- list(
+  l9 = compute_level_breaks(se_hex),
+  l8 = compute_level_breaks(se_l8)
+)
+
+jsonlite::write_json(metadata, file.path(app_data_dir, "metadata.json"),
+  auto_unbox = TRUE, digits = 8)

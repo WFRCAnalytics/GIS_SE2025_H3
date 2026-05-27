@@ -1,0 +1,55 @@
+/* ── WFRC Design Tokens ──────────────────────────────────────────────────── */
+:root {
+  --color-primary:        #0067B1;
+  --color-primary-dark:   #004F89;
+  --color-primary-light:  #3A8FCC;
+  --color-primary-10:     #E6F2FA;
+
+  --color-surface:        #FFFFFF;
+  --color-surface-raised: #F5F7FA;
+  --color-border:         #D0D8E0;
+  --color-text:           #1A2B3C;
+  --color-text-secondary: #5A6A7A;
+  --color-text-disabled:  #9AAABB;
+  --color-na:             #CCCCCC;
+
+  --sidebar-width:   280px;
+  --header-height:   52px;
+  --divider-width:   4px;
+  --radius:          6px;
+  --radius-sm:       4px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-xs:   11px;
+  --font-size-sm:   12px;
+  --font-size-base: 14px;
+  --font-size-md:   15px;
+}
+
+/* ── Reset ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
