@@ -79,3 +79,7 @@ export const DEFAULT_ZOOM = 9;
 
 // Below this zoom → auto-select L8; at or above → auto-select L9
 export const AUTO_LEVEL_ZOOM = 11;
+
+// Zoom range over which L8 fades out and L9 fades in (GPU-evaluated per frame)
+export const AUTO_LEVEL_FADE_START = 10.5;
+export const AUTO_LEVEL_FADE_END   = 11.5;

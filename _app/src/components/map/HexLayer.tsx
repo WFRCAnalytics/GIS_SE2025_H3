@@ -8,6 +8,10 @@ interface HexLayerProps {
   colorExpression: unknown[] | null;
   roadsAbove?: boolean;
   opacity?: number;
+  /** [startZoom, endZoom] — layer fades in from 0 → opacity over this range */
+  fadeInZoom?: [number, number];
+  /** [startZoom, endZoom] — layer fades out from opacity → 0 over this range */
+  fadeOutZoom?: [number, number];
   onHexHover?: (props: Record<string, unknown>) => void;
 }
 
@@ -20,10 +24,6 @@ function hexInsertBefore(map: maplibregl.Map, roadsAbove: boolean): string | und
   if (roadsAbove) {
     return layers.find(l => /^tunnel|^road|^bridge/.test(l.id))?.id;
   }
-  // Roads-below: place hex after the last road/tunnel/bridge/rail *line* layer
-  // but before the first symbol layer that follows (labels always stay on top).
-  // Exclude symbol-type layers from the road scan so that road_label (a symbol
-  // with id starting "road_") doesn't push lastRoadIdx past the text layers.
   let lastRoadIdx = -1;
   layers.forEach((l, i) => {
     if (/^tunnel|^road|^bridge|^rail/.test(l.id) && l.type !== 'symbol') lastRoadIdx = i;
@@ -35,8 +35,28 @@ function hexInsertBefore(map: maplibregl.Map, roadsAbove: boolean): string | und
   return undefined;
 }
 
-// Each source+layer set gets a unique prefixed ID so old and new can coexist
-// during the crossfade without MapLibre ID collisions.
+/**
+ * Build a fill-opacity value — either a scalar or a MapLibre zoom interpolation
+ * expression when the layer should fade in/out over a zoom range.
+ */
+function buildOpacityExpr(
+  opacity: number,
+  fadeIn?: [number, number],
+  fadeOut?: [number, number],
+): unknown {
+  if (!fadeIn && !fadeOut) return opacity;
+  const expr: unknown[] = ['interpolate', ['linear'], ['zoom']];
+  if (fadeIn) {
+    expr.push(fadeIn[0], 0, fadeIn[1], opacity);
+    if (fadeOut && fadeOut[0] > fadeIn[1]) expr.push(fadeOut[0], opacity);
+  }
+  if (fadeOut) {
+    if (!fadeIn) expr.push(fadeOut[0], opacity);
+    expr.push(fadeOut[1], 0);
+  }
+  return expr;
+}
+
 interface Slot {
   srcId: string;
   fillId: string;
@@ -49,12 +69,19 @@ function makeSlot(base: string, n: number): Slot {
   return { srcId: p, fillId: `${p}-fill`, lineId: `${p}-line`, hlId: `${p}-hl` };
 }
 
-export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove = true, opacity = OPACITY, onHexHover }: HexLayerProps) {
+export function HexLayer({
+  map, sourceId, sourceUrl, colorExpression,
+  roadsAbove = true, opacity = OPACITY,
+  fadeInZoom, fadeOutZoom,
+  onHexHover,
+}: HexLayerProps) {
   const hoveredId      = useRef<string | null>(null);
   const colorExprRef   = useRef<unknown[] | null>(colorExpression);
   const roadsAboveRef  = useRef(roadsAbove);
   const opacityRef     = useRef(opacity);
   const onHexHoverRef  = useRef(onHexHover);
+  const fadeInZoomRef  = useRef(fadeInZoom);
+  const fadeOutZoomRef = useRef(fadeOutZoom);
   const currentSlot    = useRef<Slot | null>(null);
   const currentFillRef = useRef<string | null>(null);
   const counterRef     = useRef(0);
@@ -63,27 +90,19 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
   roadsAboveRef.current = roadsAbove;
   opacityRef.current    = opacity;
   onHexHoverRef.current = onHexHover;
+  fadeInZoomRef.current  = fadeInZoom;
+  fadeOutZoomRef.current = fadeOutZoom;
 
   useEffect(() => {
     if (!map || !sourceUrl) return;
 
-    // ── Outgoing slot: fade out then remove ───────────────────────────────────
     const outgoing = currentSlot.current;
+    let crossfadeStarted = false;
+    let crossfadeFallback: ReturnType<typeof setTimeout> | null = null;
     let outgoingTimer: ReturnType<typeof setTimeout> | null = null;
 
-    if (outgoing && map.getLayer(outgoing.fillId)) {
-      map.setPaintProperty(outgoing.fillId, 'fill-opacity', 0);
-      outgoingTimer = setTimeout(() => {
-        if (map.getLayer(outgoing.hlId))   map.removeLayer(outgoing.hlId);
-        if (map.getLayer(outgoing.lineId)) map.removeLayer(outgoing.lineId);
-        if (map.getLayer(outgoing.fillId)) map.removeLayer(outgoing.fillId);
-        if (map.getSource(outgoing.srcId)) map.removeSource(outgoing.srcId);
-      }, FADE_MS + 30);
-    }
-
-    // ── Incoming slot: add at opacity 0, then fade in ─────────────────────────
     const slot = makeSlot(sourceId, counterRef.current++);
-    currentSlot.current  = slot;
+    currentSlot.current    = slot;
     currentFillRef.current = slot.fillId;
 
     map.addSource(slot.srcId, {
@@ -115,18 +134,49 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
       },
     }, beforeId);
 
-    // Apply color + start fade-in on the next frame so MapLibre registers
-    // the initial opacity:0 before transitioning to the target.
-    const fadeInTimer = setTimeout(() => {
-      if (!map.getLayer(slot.fillId)) return;
-      if (colorExprRef.current?.length) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        map.setPaintProperty(slot.fillId, 'fill-color', colorExprRef.current as any);
-      }
-      map.setPaintProperty(slot.fillId, 'fill-opacity', opacityRef.current);
-    }, 30);
+    // Hold outgoing at full opacity; crossfade only once incoming tiles are ready.
+    const startCrossfade = () => {
+      if (crossfadeStarted) return;
+      crossfadeStarted = true;
+      if (crossfadeFallback !== null) clearTimeout(crossfadeFallback);
 
-    // Hover
+      if (map.getLayer(slot.fillId)) {
+        if (colorExprRef.current?.length) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          map.setPaintProperty(slot.fillId, 'fill-color', colorExprRef.current as any);
+        }
+        // Use zoom expression for GPU-driven crossfade, or scalar in manual mode
+        map.setPaintProperty(
+          slot.fillId, 'fill-opacity',
+          buildOpacityExpr(opacityRef.current, fadeInZoomRef.current, fadeOutZoomRef.current),
+        );
+      }
+
+      if (outgoing && map.getLayer(outgoing.fillId)) {
+        map.setPaintProperty(outgoing.fillId, 'fill-opacity', 0);
+        outgoingTimer = setTimeout(() => {
+          if (map.getLayer(outgoing.hlId))   map.removeLayer(outgoing.hlId);
+          if (map.getLayer(outgoing.lineId)) map.removeLayer(outgoing.lineId);
+          if (map.getLayer(outgoing.fillId)) map.removeLayer(outgoing.fillId);
+          if (map.getSource(outgoing.srcId)) map.removeSource(outgoing.srcId);
+        }, FADE_MS + 30);
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const onSourceData = (e: any) => {
+      if (e.sourceId === slot.srcId && e.isSourceLoaded) {
+        map.off('sourcedata', onSourceData);
+        startCrossfade();
+      }
+    };
+    map.on('sourcedata', onSourceData);
+
+    crossfadeFallback = setTimeout(() => {
+      map.off('sourcedata', onSourceData);
+      startCrossfade();
+    }, 2000);
+
     const fs = (id: string) => ({ source: slot.srcId, sourceLayer: LAYER, id });
     const onMouseMove = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       if (!e.features?.length) return;
@@ -149,18 +199,15 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
     map.on('mouseleave', slot.fillId, onMouseLeave);
 
     return () => {
-      clearTimeout(fadeInTimer);
+      map.off('sourcedata', onSourceData);
+      if (crossfadeFallback !== null) clearTimeout(crossfadeFallback);
 
-      // Cancel the deferred outgoing-slot removal and do it immediately so
-      // we don't leave orphaned layers if sourceUrl changes again mid-fade.
-      if (outgoingTimer !== null) {
-        clearTimeout(outgoingTimer);
-        if (outgoing) {
-          if (map.getLayer(outgoing.hlId))   map.removeLayer(outgoing.hlId);
-          if (map.getLayer(outgoing.lineId)) map.removeLayer(outgoing.lineId);
-          if (map.getLayer(outgoing.fillId)) map.removeLayer(outgoing.fillId);
-          if (map.getSource(outgoing.srcId)) map.removeSource(outgoing.srcId);
-        }
+      if (outgoingTimer !== null) clearTimeout(outgoingTimer);
+      if (outgoing) {
+        if (map.getLayer(outgoing.hlId))   map.removeLayer(outgoing.hlId);
+        if (map.getLayer(outgoing.lineId)) map.removeLayer(outgoing.lineId);
+        if (map.getLayer(outgoing.fillId)) map.removeLayer(outgoing.fillId);
+        if (map.getSource(outgoing.srcId)) map.removeSource(outgoing.srcId);
       }
 
       map.off('mousemove', slot.fillId, onMouseMove);
@@ -170,14 +217,13 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
       if (map.getLayer(slot.fillId)) map.removeLayer(slot.fillId);
       if (map.getSource(slot.srcId)) map.removeSource(slot.srcId);
 
-      // Null the refs so the next effect run starts fresh
       currentSlot.current    = null;
       currentFillRef.current = null;
       hoveredId.current      = null;
     };
   }, [map, sourceId, sourceUrl]);
 
-  // Roads above/below toggle — move existing layers without rebuilding the source
+  // Roads above/below toggle — move layers without rebuilding source
   useEffect(() => {
     if (!map) return;
     const slot = currentSlot.current;
@@ -197,15 +243,17 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove
     map.setPaintProperty(fillId, 'fill-color', colorExpression as any);
   }, [map, colorExpression, sourceId]);
 
-  // Opacity slider — bypass the CSS transition so drags feel instant.
+  // Opacity slider — bypass CSS transition so drags feel instant.
+  // Rebuilds zoom expression with updated opacity when slider moves.
   // Deliberately excludes sourceId: new slots get opacity from opacityRef
-  // inside the fade-in timer; adding sourceId here would skip the fade-in.
+  // inside startCrossfade; adding sourceId here would skip the fade-in.
   useEffect(() => {
     if (!map) return;
     const fillId = currentFillRef.current;
     if (!fillId || !map.getLayer(fillId)) return;
+    const expr = buildOpacityExpr(opacity, fadeInZoomRef.current, fadeOutZoomRef.current);
     map.setPaintProperty(fillId, 'fill-opacity-transition', { duration: 0, delay: 0 });
-    map.setPaintProperty(fillId, 'fill-opacity', opacity);
+    map.setPaintProperty(fillId, 'fill-opacity', expr);
     map.setPaintProperty(fillId, 'fill-opacity-transition', { duration: FADE_MS, delay: 0 });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, opacity]);

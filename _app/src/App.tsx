@@ -16,11 +16,21 @@ export default function App() {
   const [roadsAbove, setRoadsAbove] = useState<boolean>(true);
   const [hexOpacity, setHexOpacity] = useState<number>(0.78);
 
+  // Both levels loaded simultaneously — enables GPU-driven zoom crossfade in auto mode
+  const dataL8 = useData(variable, 'l8');
+  const dataL9 = useData(variable, 'l9');
+
+  // Display level (for header/sidebar label) — still derived from zoom
   const level: HexLevel = levelMode === 'auto'
     ? (mapZoom >= AUTO_LEVEL_ZOOM ? 'l9' : 'l8')
     : levelMode;
 
-  const { status, sourceUrl, colorScale, error } = useData(variable, level);
+  const compositeStatus =
+    dataL8.status === 'error'       || dataL9.status === 'error'       ? 'error'       :
+    dataL8.status === 'initializing'|| dataL9.status === 'initializing'? 'initializing' :
+    dataL8.status === 'refreshing'  || dataL9.status === 'refreshing'  ? 'refreshing'  :
+    'ready';
+  const errorMsg = dataL8.error ?? dataL9.error;
 
   const handleHexHover = useCallback((props: Record<string, unknown>) => {
     const num = (v: unknown) => (v == null || v === '' ? null : Number(v));
@@ -44,8 +54,6 @@ export default function App() {
     setMapZoom(zoom);
   }, []);
 
-  const isLoading = status === 'initializing' || status === 'refreshing';
-
   return (
     <div style={styles.app}>
       <Header variable={variable} level={level} />
@@ -54,8 +62,8 @@ export default function App() {
           variable={variable}
           level={level}
           levelMode={levelMode}
-          colorScale={colorScale}
-          disabled={isLoading}
+          colorScale={level === 'l8' ? dataL8.colorScale : dataL9.colorScale}
+          disabled={compositeStatus === 'initializing' || compositeStatus === 'refreshing'}
           roadsAbove={roadsAbove}
           hexOpacity={hexOpacity}
           onVariableChange={setVariable}
@@ -65,16 +73,18 @@ export default function App() {
         />
         <div style={styles.mapArea}>
           <SwipeMap
-            sourceUrl={sourceUrl}
-            colorScale={colorScale}
+            levelMode={levelMode}
+            sourceUrlL8={dataL8.sourceUrl}
+            colorScaleL8={dataL8.colorScale}
+            sourceUrlL9={dataL9.sourceUrl}
+            colorScaleL9={dataL9.colorScale}
             roadsAbove={roadsAbove}
             opacity={hexOpacity}
             onHexHover={handleHexHover}
             onZoomChange={handleZoomChange}
           />
           <HexInfoBox data={hoveredHex} activeVariable={variable} />
-          {isLoading && <LoadingOverlay status={status} error={null} />}
-          {status === 'error' && <LoadingOverlay status={status} error={error} />}
+          {compositeStatus !== 'ready' && <LoadingOverlay status={compositeStatus} error={errorMsg} />}
         </div>
       </div>
     </div>

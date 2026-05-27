@@ -3,22 +3,40 @@ import { MapPane } from './MapPane';
 import { HexLayer } from './HexLayer';
 import { useMapSync } from '../../hooks/useMapSync';
 import type { ColorScale } from '../../lib/colorScale';
+import type { HexLevel, LevelMode } from '../../types';
+import {
+  AUTO_LEVEL_FADE_START, AUTO_LEVEL_FADE_END,
+  AUTO_LEVEL_ZOOM, DEFAULT_ZOOM,
+} from '../../constants';
 
 interface SwipeMapProps {
-  sourceUrl: string | null;
-  colorScale: ColorScale | null;
+  levelMode: LevelMode;
+  sourceUrlL8: string | null;
+  colorScaleL8: ColorScale | null;
+  sourceUrlL9: string | null;
+  colorScaleL9: ColorScale | null;
   roadsAbove?: boolean;
   opacity?: number;
   onHexHover?: (props: Record<string, unknown>) => void;
   onZoomChange?: (zoom: number) => void;
 }
 
-export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, opacity, onHexHover, onZoomChange }: SwipeMapProps) {
+const L8_FADE_OUT: [number, number] = [AUTO_LEVEL_FADE_START, AUTO_LEVEL_FADE_END];
+const L9_FADE_IN:  [number, number] = [AUTO_LEVEL_FADE_START, AUTO_LEVEL_FADE_END];
+
+export function SwipeMap({
+  levelMode,
+  sourceUrlL8, colorScaleL8,
+  sourceUrlL9, colorScaleL9,
+  roadsAbove = true, opacity,
+  onHexHover, onZoomChange,
+}: SwipeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dividerRef   = useRef<HTMLDivElement>(null);
   const [divX, setDivX] = useState<number | null>(null);
   const [leftReady, setLeftReady]   = useState(false);
   const [rightReady, setRightReady] = useState(false);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const { leftRef, rightRef, attachSync } = useMapSync();
 
   useEffect(() => {
@@ -27,11 +45,16 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, opacity, on
     return cleanup;
   }, [leftReady, rightReady, attachSync]);
 
+  // Track zoom for hover routing and report to parent
   useEffect(() => {
-    if (!leftReady || !onZoomChange) return;
+    if (!leftReady) return;
     const map = leftRef.current;
     if (!map) return;
-    const handler = () => onZoomChange(map.getZoom());
+    const handler = () => {
+      const z = map.getZoom();
+      setZoom(z);
+      onZoomChange?.(z);
+    };
     map.on('zoom', handler);
     return () => { map.off('zoom', handler); };
   }, [leftReady, leftRef, onZoomChange]);
@@ -73,9 +96,6 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, opacity, on
     onMove(startX);
   }, []);
 
-  // React registers onTouchStart as a passive listener, which blocks preventDefault.
-  // Attach directly to the DOM node with { passive: false } so the drag can
-  // suppress scroll while the divider is being dragged.
   useEffect(() => {
     const el = dividerRef.current;
     if (!el) return;
@@ -86,8 +106,15 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, opacity, on
 
   const handleHexHover = useCallback(
     (props: Record<string, unknown>) => onHexHover?.(props),
-    [onHexHover]
+    [onHexHover],
   );
+
+  // In auto mode route hover to the dominant level; in manual mode the single layer always wins
+  const hoverLevel: HexLevel = zoom >= AUTO_LEVEL_ZOOM ? 'l9' : 'l8';
+  const l8Hover = levelMode === 'l8' || (levelMode === 'auto' && hoverLevel === 'l8')
+    ? handleHexHover : undefined;
+  const l9Hover = levelMode === 'l9' || (levelMode === 'auto' && hoverLevel === 'l9')
+    ? handleHexHover : undefined;
 
   const clipPx = getClipPx();
 
@@ -96,15 +123,32 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, opacity, on
       {/* Left map: smoothed */}
       <div style={styles.mapBase}>
         <MapPane mapRef={leftRef} onReady={() => setLeftReady(true)} />
-        {leftReady && (
+        {/* L8 — rendered in auto and l8 modes */}
+        {leftReady && levelMode !== 'l9' && (
           <HexLayer
+            key={`left-l8-${levelMode}`}
             map={leftRef.current}
-            sourceId="left-hexes"
-            sourceUrl={sourceUrl}
-            colorExpression={colorScale?.smoothedExpression ?? null}
+            sourceId="left-l8"
+            sourceUrl={sourceUrlL8}
+            colorExpression={colorScaleL8?.smoothedExpression ?? null}
             roadsAbove={roadsAbove}
             opacity={opacity}
-            onHexHover={handleHexHover}
+            fadeOutZoom={levelMode === 'auto' ? L8_FADE_OUT : undefined}
+            onHexHover={l8Hover}
+          />
+        )}
+        {/* L9 — rendered in auto and l9 modes */}
+        {leftReady && levelMode !== 'l8' && (
+          <HexLayer
+            key={`left-l9-${levelMode}`}
+            map={leftRef.current}
+            sourceId="left-l9"
+            sourceUrl={sourceUrlL9}
+            colorExpression={colorScaleL9?.smoothedExpression ?? null}
+            roadsAbove={roadsAbove}
+            opacity={opacity}
+            fadeInZoom={levelMode === 'auto' ? L9_FADE_IN : undefined}
+            onHexHover={l9Hover}
           />
         )}
       </div>
@@ -112,15 +156,30 @@ export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, opacity, on
       {/* Right map: raw — clipped to the right of the divider */}
       <div style={{ ...styles.mapBase, clipPath: `inset(0 0 0 ${clipPx}px)` }}>
         <MapPane mapRef={rightRef} onReady={() => setRightReady(true)} />
-        {rightReady && (
+        {rightReady && levelMode !== 'l9' && (
           <HexLayer
+            key={`right-l8-${levelMode}`}
             map={rightRef.current}
-            sourceId="right-hexes"
-            sourceUrl={sourceUrl}
-            colorExpression={colorScale?.rawExpression ?? null}
+            sourceId="right-l8"
+            sourceUrl={sourceUrlL8}
+            colorExpression={colorScaleL8?.rawExpression ?? null}
             roadsAbove={roadsAbove}
             opacity={opacity}
-            onHexHover={handleHexHover}
+            fadeOutZoom={levelMode === 'auto' ? L8_FADE_OUT : undefined}
+            onHexHover={l8Hover}
+          />
+        )}
+        {rightReady && levelMode !== 'l8' && (
+          <HexLayer
+            key={`right-l9-${levelMode}`}
+            map={rightRef.current}
+            sourceId="right-l9"
+            sourceUrl={sourceUrlL9}
+            colorExpression={colorScaleL9?.rawExpression ?? null}
+            roadsAbove={roadsAbove}
+            opacity={opacity}
+            fadeInZoom={levelMode === 'auto' ? L9_FADE_IN : undefined}
+            onHexHover={l9Hover}
           />
         )}
       </div>
