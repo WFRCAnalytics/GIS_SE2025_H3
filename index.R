@@ -1,15 +1,14 @@
 # ── Parameters ────────────────────────────────────────────────────────────────
 
-GDB_NAME      <- "wfrc_se_2025_rtp23"
-J2H           <- 1.8      # Jobs-to-Household ratio for WFRC/MAG region
-HEX_AREA_SQMI <- 0.0406   # Fixed area of H3 level-9 hex in square miles
+GDB_NAME          <- "wfrc_se_2025_rtp23"
+J2H               <- 1.8      # Jobs-to-Household ratio for WFRC/MAG region
+L9_HEX_AREA_SQMI  <- 0.0406   # Fixed area of H3 level-9 hex in square miles
+L8_HEX_AREA_SQMI  <- 0.2847   # Fixed area of H3 level-8 hex in square miles
 
-CENTER_WEIGHT <- 0.4
-RING1_WEIGHT  <- 0.3
-RING2_WEIGHT  <- 0.2
-RING3_WEIGHT  <- 0.1
-
-stopifnot(isTRUE(all.equal(CENTER_WEIGHT + RING1_WEIGHT + RING2_WEIGHT + RING3_WEIGHT, 1)))
+L9_WEIGHTS <- c(center = 0.4, ring1 = 0.3, ring2 = 0.2, ring3 = 0.1)
+L8_WEIGHTS <- c(center = 0.5, ring1 = 0.5, ring2 = 0.0, ring3 = 0.0)
+stopifnot(isTRUE(all.equal(sum(L9_WEIGHTS), 1)))
+stopifnot(isTRUE(all.equal(sum(L8_WEIGHTS), 1)))
 
 # Edit rows to add, remove, or reclassify center types for the Destinations score
 WC_CENTER_WEIGHTS <- c(
@@ -31,6 +30,8 @@ root <- here::here()
 library(sf)
 library(h3o)
 library(here)
+library(dplyr)
+library(tidyr)
 library(mapgl)
 library(tidycensus)
 library(tigris)
@@ -54,30 +55,30 @@ fetch_or_cache <- function(url, cache_path, layer = NULL) {
   data
 }
 
-build_neighbor_index <- function(hex_ids, k = 3L) {
+# k = last non-zero ring; per-neighbor weight = ring_weight / (6 × ring_number).
+# Edge hexes with fewer available neighbors receive proportionally less total
+# weight from that ring — it is not redistributed to remaining neighbors.
+build_neighbor_index <- function(hex_ids, weights) {
+  k         <- max(which(weights[-1] > 0))
   h3_cells  <- h3o::h3_from_strings(hex_ids)
   all_disks <- h3o::grid_disk(h3_cells, k = k)
   all_dists <- h3o::grid_distances(h3_cells, k = k)
-  pairs <- data.frame(
+  data.frame(
     center_id = rep(hex_ids, times = lengths(all_disks)),
     member_id = as.character(h3o::flatten_h3(all_disks)),
     ring      = unlist(all_dists),
     stringsAsFactors = FALSE
-  )
-  pairs <- pairs[pairs$member_id %in% hex_ids, ]
-  ring_n <- lapply(1:3, function(r) tapply(pairs$ring == r, pairs$center_id, sum))
-  pairs$weight <- ifelse(
-    pairs$ring == 0L, CENTER_WEIGHT,
-    ifelse(pairs$ring == 1L, RING1_WEIGHT / ring_n[[1L]][pairs$center_id],
-    ifelse(pairs$ring == 2L, RING2_WEIGHT / ring_n[[2L]][pairs$center_id],
-                             RING3_WEIGHT / ring_n[[3L]][pairs$center_id]))
-  )
-  pairs
+  ) |>
+    dplyr::filter(member_id %in% hex_ids) |>
+    dplyr::mutate(
+      weight = ifelse(ring == 0L, weights["center"],
+                      weights[paste0("ring", ring)] / (6L * ring))
+    )
 }
 
-# NAs in `values` are treated as 0 in the weighted sum (rowsum na.rm = TRUE).
-# Effective weight for a hex is < 1 when any neighbor has NA; results are not
-# renormalized, so smoothed values near NA regions are pulled slightly toward 0.
+# NAs in `values` are treated as 0 in the weighted sum.
+# Because edge weights are not redistributed, smoothed values near NA regions
+# or study-area boundaries are naturally pulled toward 0.
 smooth_by_neighbors <- function(hex_ids, values, neighbor_index) {
   val_map        <- setNames(values, hex_ids)
   idx            <- neighbor_index
@@ -98,7 +99,9 @@ flag_presence <- function(hex_sf, features_sf) {
 intersection_hex <- fetch_or_cache(
   url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/Street_Intersection_Density_2025/FeatureServer/3",
   cache_path = "_data/remote/design/intersection_hex.gpkg"
-)
+) |>
+  dplyr::mutate(hex_id = as.character(hex_id)) |>
+  dplyr::filter(nchar(hex_id) == 15L)
 
 # Destinations
 center_boundaries <- fetch_or_cache(
@@ -177,75 +180,125 @@ se_hex <- sf::read_sf(
 hex_ids <- se_hex$hex_id
 hex_crs <- sf::st_crs(se_hex)
 
-# ── Neighbor Index ─────────────────────────────────────────────────────────────
+na_county_names <- c("Tooele", "Morgan", "Summit", "Wasatch")
 
-neighbor_index <- build_neighbor_index(hex_ids)
+# ── Destinations: shared setup (used by both L9 and L8) ───────────────────────
 
-# ── 1. Density ─────────────────────────────────────────────────────────────────
+# inspect names(cb_proj) to confirm the center type field; adjust if needed
+cb_proj <- center_boundaries |>
+  sf::st_transform(hex_crs) |>
+  sf::st_make_valid() |>
+  dplyr::mutate(tier_weight = WC_CENTER_WEIGHTS[CenterType]) |>
+  dplyr::filter(!is.na(tier_weight), tier_weight > 0)
 
-res_s  <- smooth_by_neighbors(hex_ids, se_hex$residential_units, neighbor_index)
-jobs_s <- smooth_by_neighbors(hex_ids, se_hex$total_jobs, neighbor_index)
-density <- (res_s + jobs_s / J2H) / HEX_AREA_SQMI
+# inspect names(schools) — filter field and value may differ from "SchoolLevel"/"high"
+high_schools    <- dplyr::filter(schools,        grepl("high", SchoolLevel,  ignore.case = TRUE))
+# inspect names(grocery_stores) — confirm TYPE field name
+grocery_filt    <- dplyr::filter(grocery_stores, TYPE %in% c("Grocery Store", "Specialty Grocery", "Supermarket"))
+# inspect names(city_halls) — confirm Facility field name
+city_halls_filt <- dplyr::filter(city_halls,     grepl("City Hall|County Office", Facility, ignore.case = TRUE))
+
+# ── Transit: shared setup (used by both L9 and L8) ────────────────────────────
+
+stop_times <- read.csv(file.path(gtfs_dir, "stop_times.txt"), stringsAsFactors = FALSE)
+trips      <- read.csv(file.path(gtfs_dir, "trips.txt"),      stringsAsFactors = FALSE)
+routes     <- read.csv(file.path(gtfs_dir, "routes.txt"),     stringsAsFactors = FALSE)
+calendar   <- read.csv(file.path(gtfs_dir, "calendar.txt"),   stringsAsFactors = FALSE)
+stops_txt  <- read.csv(file.path(gtfs_dir, "stops.txt"),      stringsAsFactors = FALSE)
+
+weekday_service_ids <- dplyr::filter(calendar, monday == 1L) |> dplyr::pull(service_id)
+
+# Parse HH:MM:SS → decimal minutes (handles GTFS times > 24:00); compute
+# within-stop inter-arrival headways; null the last row of each stop group.
+st_wd <- stop_times |>
+  dplyr::inner_join(
+    trips |>
+      dplyr::filter(service_id %in% weekday_service_ids) |>
+      dplyr::inner_join(dplyr::select(routes, route_id, route_type), by = "route_id") |>
+      dplyr::select(trip_id, route_type),
+    by = "trip_id"
+  ) |>
+  tidyr::separate(arrival_time, into = c("h", "m", "s"), sep = ":", convert = TRUE) |>
+  dplyr::mutate(arr_min = h * 60 + m + s / 60) |>
+  dplyr::select(-h, -m, -s) |>
+  dplyr::arrange(stop_id, arr_min) |>
+  dplyr::group_by(stop_id) |>
+  dplyr::mutate(headway = c(diff(arr_min), NA_real_)) |>
+  dplyr::ungroup()
+
+# Frequent: median headway <= 15 min OR commuter/heavy rail (route_type 1 or 2)
+frequent_ids <- st_wd |>
+  dplyr::group_by(stop_id) |>
+  dplyr::summarise(
+    headway    = median(headway,    na.rm = TRUE),
+    route_type = min(route_type),
+    .groups    = "drop"
+  ) |>
+  dplyr::filter(!is.na(headway), headway <= 15 | route_type %in% c(1L, 2L)) |>
+  dplyr::pull(stop_id)
+
+frequent_stops <- stops_txt |>
+  dplyr::filter(stop_id %in% frequent_ids) |>
+  sf::st_as_sf(coords = c("stop_lon", "stop_lat"), crs = 4326L) |>
+  sf::st_transform(hex_crs)
+
+# ── 1. Level-9 Pipeline ────────────────────────────────────────────────────────
+
+neighbor_index <- build_neighbor_index(hex_ids, L9_WEIGHTS)
+
+## Density
+res_s   <- smooth_by_neighbors(hex_ids, se_hex$residential_units, neighbor_index)
+jobs_s  <- smooth_by_neighbors(hex_ids, se_hex$total_jobs,        neighbor_index)
+density <- (res_s + jobs_s / J2H) / L9_HEX_AREA_SQMI
 
 # Flag hexes in Tooele Valley, Morgan, Summit, and Wasatch counties as NA
 # TODO: pending TBD methodology for these areas per supervisor guidance
 # inspect names(utah_counties) to confirm the county name field before running
-na_county_names <- c("Tooele", "Morgan", "Summit", "Wasatch")
-county_join <- sf::st_join(
+na_hex_ids <- sf::st_join(
   sf::st_centroid(se_hex["hex_id"]),
   sf::st_transform(utah_counties["NAME"], hex_crs),
   join = sf::st_within
-)
-density[county_join$NAME %in% na_county_names] <- NA_real_
+) |>
+  sf::st_drop_geometry() |>
+  dplyr::filter(NAME %in% na_county_names) |>
+  dplyr::pull(hex_id)
+density[hex_ids %in% na_hex_ids] <- NA_real_
 
-# ── 2. Diversity ───────────────────────────────────────────────────────────────
-
+## Diversity
 hh_s  <- smooth_by_neighbors(hex_ids, se_hex$households, neighbor_index)
 emp_s <- smooth_by_neighbors(hex_ids, se_hex$total_jobs,  neighbor_index)
 hw    <- hh_s * J2H
 diversity <- ifelse(hw == 0 | emp_s == 0, NA_real_, pmin(hw, emp_s) / pmax(hw, emp_s))
 
-# ── 3. Design ──────────────────────────────────────────────────────────────────
-
+## Design
 # inspect class(intersection_hex$hex_id) and class(se_hex$hex_id) before joining;
-# both layers use H3 string IDs → direct join on hex_id
-design_lookup <- merge(
-  data.frame(hex_id = hex_ids, stringsAsFactors = FALSE),
-  sf::st_drop_geometry(intersection_hex)[, c("hex_id", "IntPtsPerM")],
-  by = "hex_id", all.x = TRUE
-)
-design <- smooth_by_neighbors(hex_ids, design_lookup$IntPtsPerM, neighbor_index)
+# both layers use H3 string IDs → direct join on hex_id.
+# IntPtsPerM = (4-way intersections × 1) + (3-way × 0.5); summing is valid here.
+design_raw <- tibble::tibble(hex_id = hex_ids) |>
+  dplyr::left_join(
+    sf::st_drop_geometry(intersection_hex) |> dplyr::select(hex_id, IntPtsPerM),
+    by = "hex_id"
+  ) |>
+  dplyr::pull(IntPtsPerM)
+design <- smooth_by_neighbors(hex_ids, design_raw, neighbor_index)
 
-# ── 4. Destinations ────────────────────────────────────────────────────────────
-
-## Step 1: WC Center score
-
-cb_proj <- sf::st_transform(center_boundaries, hex_crs) |> sf::st_make_valid()
-# inspect names(cb_proj) to confirm the center type field; adjust if needed
-cb_proj$tier_weight <- WC_CENTER_WEIGHTS[cb_proj$CenterType]
-cb_proj <- cb_proj[!is.na(cb_proj$tier_weight) & cb_proj$tier_weight > 0, ]
-
+## Destinations
 hex_area_m2 <- setNames(as.numeric(sf::st_area(se_hex)), hex_ids)
+cb_int      <- sf::st_intersection(se_hex["hex_id"], cb_proj[, c("CenterType", "tier_weight")])
 
-cb_int    <- sf::st_intersection(se_hex["hex_id"], cb_proj[, c("CenterType", "tier_weight")])
-cb_int_df <- sf::st_drop_geometry(cb_int)
-cb_int_df$int_area <- as.numeric(sf::st_area(cb_int))
-cb_int_df$contrib  <- cb_int_df$int_area / hex_area_m2[cb_int_df$hex_id] * cb_int_df$tier_weight
-
-wc_raw   <- tapply(cb_int_df$contrib, cb_int_df$hex_id, sum)
-wc_score <- setNames(numeric(length(hex_ids)), hex_ids)
-wc_score[names(wc_raw)] <- pmin(as.numeric(wc_raw), 1.0)
-
-## Step 2: Amenity presence flags
-
-# inspect names(schools) — filter field and value may differ from "SchoolLevel"/"high"
-high_schools    <- schools[grepl("high", schools$SchoolLevel, ignore.case = TRUE), ]
-# inspect names(grocery_stores) — confirm TYPE field name
-grocery_filt    <- grocery_stores[
-  grocery_stores$TYPE %in% c("Grocery Store", "Specialty Grocery", "Supermarket"), ]
-# inspect names(city_halls) — confirm Facility field name
-city_halls_filt <- city_halls[
-  grepl("City Hall|County Office", city_halls$Facility, ignore.case = TRUE), ]
+wc_score <- tibble::tibble(hex_id = hex_ids) |>
+  dplyr::left_join(
+    sf::st_drop_geometry(cb_int) |>
+      dplyr::mutate(
+        int_area = as.numeric(sf::st_area(cb_int)),
+        contrib  = int_area / hex_area_m2[hex_id] * tier_weight
+      ) |>
+      dplyr::group_by(hex_id) |>
+      dplyr::summarise(score = pmin(sum(contrib), 1.0), .groups = "drop"),
+    by = "hex_id"
+  ) |>
+  dplyr::mutate(score = tidyr::replace_na(score, 0)) |>
+  dplyr::pull(score)
 
 healthcare_flag <- flag_presence(se_hex, health_care)
 highschool_flag <- flag_presence(se_hex, high_schools)
@@ -253,15 +306,11 @@ grocery_flag    <- flag_presence(se_hex, grocery_filt)
 cityhall_flag   <- flag_presence(se_hex, city_halls_filt)
 park_flag       <- pmax(flag_presence(se_hex, parks_local), flag_presence(se_hex, parks_wfrc))
 
-amenity_score <- (healthcare_flag + highschool_flag + grocery_flag + cityhall_flag + park_flag) / 5
-
-## Step 3: Combine and smooth
-
+amenity_score    <- (healthcare_flag + highschool_flag + grocery_flag + cityhall_flag + park_flag) / 5
 raw_destinations <- 0.6 * wc_score + 0.4 * amenity_score
 destinations     <- smooth_by_neighbors(hex_ids, raw_destinations, neighbor_index)
 
-# ── 5. Demographics ────────────────────────────────────────────────────────────
-
+## Demographics
 # Household-weighted interpolation from BG → hex using SE 2025 projected HH as
 # the weights layer. Same vintage as the pipeline; Census blocks (Method A) gave
 # R²=0.92, RMSE=$10,919, bias=$103 vs this method — negligible average difference.
@@ -274,63 +323,27 @@ demographics_interp <- tidycensus::interpolate_pw(
   weight_column    = "households",
   weight_placement = "surface"
 )
-
-# match() guards against any row-order differences in the interpolate_pw output
-demographics_raw <- demographics_interp$estimate[match(hex_ids, demographics_interp$hex_id)]
-demographics_raw[se_hex$households == 0] <- NA_real_
+demographics_raw <- tibble::tibble(hex_id = hex_ids) |>
+  dplyr::left_join(
+    sf::st_drop_geometry(demographics_interp) |> dplyr::select(hex_id, estimate),
+    by = "hex_id"
+  ) |>
+  dplyr::left_join(
+    sf::st_drop_geometry(se_hex) |> dplyr::select(hex_id, households),
+    by = "hex_id"
+  ) |>
+  dplyr::mutate(estimate = dplyr::if_else(households == 0, NA_real_, estimate)) |>
+  dplyr::pull(estimate)
 demographics <- smooth_by_neighbors(hex_ids, demographics_raw, neighbor_index)
 
-# ── 6. Distance to Transit ─────────────────────────────────────────────────────
-
-stop_times <- read.csv(file.path(gtfs_dir, "stop_times.txt"), stringsAsFactors = FALSE)
-trips      <- read.csv(file.path(gtfs_dir, "trips.txt"),      stringsAsFactors = FALSE)
-routes     <- read.csv(file.path(gtfs_dir, "routes.txt"),     stringsAsFactors = FALSE)
-calendar   <- read.csv(file.path(gtfs_dir, "calendar.txt"),   stringsAsFactors = FALSE)
-stops_txt  <- read.csv(file.path(gtfs_dir, "stops.txt"),      stringsAsFactors = FALSE)
-
-weekday_trips <- merge(
-  trips[trips$service_id %in% calendar$service_id[calendar$monday == 1L], ],
-  routes[, c("route_id", "route_type")],
-  by = "route_id"
-)
-st_wd <- merge(stop_times, weekday_trips[, c("trip_id", "route_type")], by = "trip_id")
-
-# Parse HH:MM:SS → decimal minutes (handles GTFS times > 24:00)
-arr_mat       <- do.call(rbind, strsplit(st_wd$arrival_time, ":"))
-st_wd$arr_min <- as.integer(arr_mat[, 1L]) * 60 +
-                 as.integer(arr_mat[, 2L]) +
-                 as.integer(arr_mat[, 3L]) / 60
-
-st_wd <- st_wd[order(st_wd$stop_id, st_wd$arr_min), ]
-
-# Compute inter-arrival diffs; null out cross-group positions
-stop_rle <- rle(st_wd$stop_id)
-diffs    <- diff(st_wd$arr_min)
-diffs[cumsum(stop_rle$lengths)[-length(stop_rle$lengths)]] <- NA_real_
-st_wd$headway <- c(diffs, NA_real_)
-
-stop_headway    <- tapply(st_wd$headway,    st_wd$stop_id, median, na.rm = TRUE)
-stop_route_type <- tapply(st_wd$route_type, st_wd$stop_id, min)
-
-# Frequent: headway <= 15 min OR commuter/heavy rail (route_type 1 or 2)
-frequent_ids <- names(stop_headway)[
-  !is.na(stop_headway) &
-  (stop_headway <= 15 | stop_route_type[names(stop_headway)] %in% c(1L, 2L))
-]
-
-frequent_stops <- sf::st_as_sf(
-  stops_txt[stops_txt$stop_id %in% frequent_ids, ],
-  coords = c("stop_lon", "stop_lat"), crs = 4326L
-) |> sf::st_transform(hex_crs)
-
+## Distance to Transit
 centroids        <- sf::st_centroid(sf::st_geometry(se_hex))
 dist_mat         <- sf::st_distance(centroids, frequent_stops)
 nearest_col      <- apply(dist_mat, 1L, which.min)
 transit_dist_raw <- as.numeric(dist_mat[cbind(seq_len(nrow(se_hex)), nearest_col)]) / 1609.34
 transit_dist     <- smooth_by_neighbors(hex_ids, transit_dist_raw, neighbor_index)
 
-# ── Output Assembly ────────────────────────────────────────────────────────────
-
+## Assemble L9
 se_hex$density      <- density
 se_hex$diversity    <- diversity
 se_hex$design       <- design
@@ -338,11 +351,132 @@ se_hex$destinations <- destinations
 se_hex$demographics <- demographics
 se_hex$transit_dist <- transit_dist
 
-# ── Visualization: Diversity — smoothed vs raw ─────────────────────────────────
+# ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
+
+## Aggregate SE from L9 → L8 (union geometries, sum count columns)
+h8_ids_vec <- as.character(h3o::get_parents(h3o::h3_from_strings(hex_ids), resolution = 8L))
+
+se_l8 <- se_hex |>
+  dplyr::mutate(hex_id = h8_ids_vec) |>
+  dplyr::select(hex_id, residential_units, total_jobs, households) |>
+  dplyr::group_by(hex_id) |>
+  dplyr::summarise(
+    residential_units = sum(residential_units, na.rm = TRUE),
+    total_jobs        = sum(total_jobs,        na.rm = TRUE),
+    households        = sum(households,        na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  sf::st_collection_extract("POLYGON") |>
+  sf::st_cast("MULTIPOLYGON")
+h8_ids <- se_l8$hex_id
+
+neighbor_index_l8 <- build_neighbor_index(h8_ids, L8_WEIGHTS)
+
+## Density (L8)
+res_s_l8   <- smooth_by_neighbors(h8_ids, se_l8$residential_units, neighbor_index_l8)
+jobs_s_l8  <- smooth_by_neighbors(h8_ids, se_l8$total_jobs,        neighbor_index_l8)
+density_l8 <- (res_s_l8 + jobs_s_l8 / J2H) / L8_HEX_AREA_SQMI
+
+na_hex_ids <- sf::st_join(
+  sf::st_centroid(se_l8["hex_id"]),
+  sf::st_transform(utah_counties["NAME"], hex_crs),
+  join = sf::st_within
+) |>
+  sf::st_drop_geometry() |>
+  dplyr::filter(NAME %in% na_county_names) |>
+  dplyr::pull(hex_id)
+density_l8[h8_ids %in% na_hex_ids] <- NA_real_
+
+## Diversity (L8)
+hh_s_l8  <- smooth_by_neighbors(h8_ids, se_l8$households, neighbor_index_l8)
+emp_s_l8 <- smooth_by_neighbors(h8_ids, se_l8$total_jobs,  neighbor_index_l8)
+hw_l8    <- hh_s_l8 * J2H
+diversity_l8 <- ifelse(hw_l8 == 0 | emp_s_l8 == 0, NA_real_, pmin(hw_l8, emp_s_l8) / pmax(hw_l8, emp_s_l8))
+
+## Design (L8) — sum IntPtsPerM across L9 children per L8 hex
+int_hex_l8 <- sf::st_drop_geometry(intersection_hex) |>
+  dplyr::select(hex_id, IntPtsPerM) |>
+  dplyr::mutate(h8_id = as.character(h3o::get_parents(h3o::h3_from_strings(hex_id), resolution = 8L))) |>
+  dplyr::group_by(h8_id) |>
+  dplyr::summarise(IntPtsPerM = sum(IntPtsPerM, na.rm = TRUE), .groups = "drop")
+
+design_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
+  dplyr::left_join(int_hex_l8, by = c("hex_id" = "h8_id")) |>
+  dplyr::pull(IntPtsPerM)
+design_l8 <- smooth_by_neighbors(h8_ids, design_raw_l8, neighbor_index_l8)
+
+## Destinations (L8) — re-run intersection against L8 hexes
+hex_area_m2_l8 <- setNames(as.numeric(sf::st_area(se_l8)), h8_ids)
+cb_int_l8      <- sf::st_intersection(se_l8["hex_id"], cb_proj[, c("CenterType", "tier_weight")])
+
+wc_score_l8 <- tibble::tibble(hex_id = h8_ids) |>
+  dplyr::left_join(
+    sf::st_drop_geometry(cb_int_l8) |>
+      dplyr::mutate(
+        int_area = as.numeric(sf::st_area(cb_int_l8)),
+        contrib  = int_area / hex_area_m2_l8[hex_id] * tier_weight
+      ) |>
+      dplyr::group_by(hex_id) |>
+      dplyr::summarise(score = pmin(sum(contrib), 1.0), .groups = "drop"),
+    by = "hex_id"
+  ) |>
+  dplyr::mutate(score = tidyr::replace_na(score, 0)) |>
+  dplyr::pull(score)
+
+healthcare_flag_l8 <- flag_presence(se_l8, health_care)
+highschool_flag_l8 <- flag_presence(se_l8, high_schools)
+grocery_flag_l8    <- flag_presence(se_l8, grocery_filt)
+cityhall_flag_l8   <- flag_presence(se_l8, city_halls_filt)
+park_flag_l8       <- pmax(flag_presence(se_l8, parks_local), flag_presence(se_l8, parks_wfrc))
+
+amenity_score_l8    <- (healthcare_flag_l8 + highschool_flag_l8 + grocery_flag_l8 +
+                        cityhall_flag_l8 + park_flag_l8) / 5
+raw_destinations_l8 <- 0.6 * wc_score_l8 + 0.4 * amenity_score_l8
+destinations_l8     <- smooth_by_neighbors(h8_ids, raw_destinations_l8, neighbor_index_l8)
+
+## Demographics (L8)
+demographics_interp_l8 <- tidycensus::interpolate_pw(
+  from             = sf::st_transform(bg_income, hex_crs),
+  to               = se_l8,
+  to_id            = "hex_id",
+  extensive        = FALSE,
+  weights          = se_l8[, c("hex_id", "households")],
+  weight_column    = "households",
+  weight_placement = "surface"
+)
+demographics_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
+  dplyr::left_join(
+    sf::st_drop_geometry(demographics_interp_l8) |> dplyr::select(hex_id, estimate),
+    by = "hex_id"
+  ) |>
+  dplyr::left_join(
+    sf::st_drop_geometry(se_l8) |> dplyr::select(hex_id, households),
+    by = "hex_id"
+  ) |>
+  dplyr::mutate(estimate = dplyr::if_else(households == 0, NA_real_, estimate)) |>
+  dplyr::pull(estimate)
+demographics_l8 <- smooth_by_neighbors(h8_ids, demographics_raw_l8, neighbor_index_l8)
+
+## Distance to Transit (L8)
+centroids_l8        <- sf::st_centroid(sf::st_geometry(se_l8))
+dist_mat_l8         <- sf::st_distance(centroids_l8, frequent_stops)
+nearest_col_l8      <- apply(dist_mat_l8, 1L, which.min)
+transit_dist_raw_l8 <- as.numeric(dist_mat_l8[cbind(seq_len(nrow(se_l8)), nearest_col_l8)]) / 1609.34
+transit_dist_l8     <- smooth_by_neighbors(h8_ids, transit_dist_raw_l8, neighbor_index_l8)
+
+## Assemble L8
+se_l8$density      <- density_l8
+se_l8$diversity    <- diversity_l8
+se_l8$design       <- design_l8
+se_l8$destinations <- destinations_l8
+se_l8$demographics <- demographics_l8
+se_l8$transit_dist <- transit_dist_l8
+
+# ── Visualization: Diversity — smoothed vs raw (L9) ───────────────────────────
 
 se_hex_4326 <- sf::st_transform(se_hex, 4326L)
 
-hw_raw              <- se_hex$households * J2H
+hw_raw               <- se_hex$households * J2H
 diversity_unsmoothed <- ifelse(
   hw_raw == 0 | se_hex$total_jobs == 0, NA_real_,
   pmin(hw_raw, se_hex$total_jobs) / pmax(hw_raw, se_hex$total_jobs)
@@ -407,7 +541,8 @@ if (!dir.exists(file.path(root, "_output"))) dir.create(file.path(root, "_output
 gdb_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb"))
 zip_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
 
-sf::write_sf(se_hex, gdb_path, layer = GDB_NAME, driver = "OpenFileGDB", append = FALSE)
+sf::write_sf(se_hex, gdb_path, layer = GDB_NAME,                driver = "OpenFileGDB", append = FALSE)
+sf::write_sf(se_l8,  gdb_path, layer = paste0(GDB_NAME, "_l8"), driver = "OpenFileGDB", append = FALSE)
 
 zip(zip_path, files = gdb_path, flags = "-r9X")
 unlink(gdb_path, recursive = TRUE)
