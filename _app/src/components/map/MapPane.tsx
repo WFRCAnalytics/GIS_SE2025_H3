@@ -26,7 +26,22 @@ export function MapPane({ mapRef, onReady, style }: MapPaneProps) {
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
+    // Push the top-right control group below the "Raw (Unsmoothed)" label (~36px tall).
+    const ctrlContainer = map.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right');
+    if (ctrlContainer) ctrlContainer.style.top = '48px';
+
     map.on('load', () => {
+      // Move building layers before the first road/tunnel layer so the hex fill
+      // can be sandwiched: land+buildings below, roads+labels above.
+      const firstRoad = map.getStyle().layers.find(
+        l => /^tunnel|^road|^bridge/.test(l.id)
+      )?.id;
+      if (firstRoad) {
+        ['building', 'building-top'].forEach(id => {
+          if (map.getLayer(id)) map.moveLayer(id, firstRoad);
+        });
+      }
+
       (mapRef as React.MutableRefObject<maplibregl.Map | null>).current = map;
       onReady?.(map);
     });

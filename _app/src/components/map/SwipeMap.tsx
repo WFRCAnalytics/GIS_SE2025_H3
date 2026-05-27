@@ -7,12 +7,14 @@ import type { ColorScale } from '../../lib/colorScale';
 interface SwipeMapProps {
   sourceUrl: string | null;
   colorScale: ColorScale | null;
+  roadsAbove?: boolean;
   onHexClick?: (props: Record<string, unknown>) => void;
   onZoomChange?: (zoom: number) => void;
 }
 
-export function SwipeMap({ sourceUrl, colorScale, onHexClick, onZoomChange }: SwipeMapProps) {
+export function SwipeMap({ sourceUrl, colorScale, roadsAbove = true, onHexClick, onZoomChange }: SwipeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const dividerRef   = useRef<HTMLDivElement>(null);
   const [divX, setDivX] = useState<number | null>(null);
   const [leftReady, setLeftReady]   = useState(false);
   const [rightReady, setRightReady] = useState(false);
@@ -70,6 +72,17 @@ export function SwipeMap({ sourceUrl, colorScale, onHexClick, onZoomChange }: Sw
     onMove(startX);
   }, []);
 
+  // React registers onTouchStart as a passive listener, which blocks preventDefault.
+  // Attach directly to the DOM node with { passive: false } so the drag can
+  // suppress scroll while the divider is being dragged.
+  useEffect(() => {
+    const el = dividerRef.current;
+    if (!el) return;
+    const handler = (e: TouchEvent) => { e.preventDefault(); startDrag(e.touches[0].clientX); };
+    el.addEventListener('touchstart', handler, { passive: false });
+    return () => el.removeEventListener('touchstart', handler);
+  }, [startDrag]);
+
   const handleHexClick = useCallback(
     (props: Record<string, unknown>) => onHexClick?.(props),
     [onHexClick]
@@ -88,6 +101,7 @@ export function SwipeMap({ sourceUrl, colorScale, onHexClick, onZoomChange }: Sw
             sourceId="left-hexes"
             sourceUrl={sourceUrl}
             colorExpression={colorScale?.smoothedExpression ?? null}
+            roadsAbove={roadsAbove}
             onHexClick={handleHexClick}
           />
         )}
@@ -102,6 +116,7 @@ export function SwipeMap({ sourceUrl, colorScale, onHexClick, onZoomChange }: Sw
             sourceId="right-hexes"
             sourceUrl={sourceUrl}
             colorExpression={colorScale?.rawExpression ?? null}
+            roadsAbove={roadsAbove}
             onHexClick={handleHexClick}
           />
         )}
@@ -109,9 +124,9 @@ export function SwipeMap({ sourceUrl, colorScale, onHexClick, onZoomChange }: Sw
 
       {/* Draggable divider */}
       <div
+        ref={dividerRef}
         style={{ ...styles.divider, left: clipPx }}
         onMouseDown={e => { e.preventDefault(); startDrag(e.clientX); }}
-        onTouchStart={e => { e.preventDefault(); startDrag(e.touches[0].clientX); }}
         role="separator"
         aria-label="Drag to compare smoothed and raw"
       >

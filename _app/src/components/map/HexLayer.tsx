@@ -6,12 +6,33 @@ interface HexLayerProps {
   sourceId: string;
   sourceUrl: string | null;
   colorExpression: unknown[] | null;
+  roadsAbove?: boolean;
   onHexClick?: (props: Record<string, unknown>) => void;
 }
 
 const LAYER   = 'hexes';
 const FADE_MS = 300;
 const OPACITY = 0.78;
+
+function hexInsertBefore(map: maplibregl.Map, roadsAbove: boolean): string | undefined {
+  const layers = map.getStyle()?.layers ?? [];
+  if (roadsAbove) {
+    return layers.find(l => /^tunnel|^road|^bridge/.test(l.id))?.id;
+  }
+  // Roads-below: place hex after the last road/tunnel/bridge/rail *line* layer
+  // but before the first symbol layer that follows (labels always stay on top).
+  // Exclude symbol-type layers from the road scan so that road_label (a symbol
+  // with id starting "road_") doesn't push lastRoadIdx past the text layers.
+  let lastRoadIdx = -1;
+  layers.forEach((l, i) => {
+    if (/^tunnel|^road|^bridge|^rail/.test(l.id) && l.type !== 'symbol') lastRoadIdx = i;
+  });
+  if (lastRoadIdx < 0) return undefined;
+  for (let i = lastRoadIdx + 1; i < layers.length; i++) {
+    if (layers[i].type === 'symbol') return layers[i].id;
+  }
+  return undefined;
+}
 
 // Each source+layer set gets a unique prefixed ID so old and new can coexist
 // during the crossfade without MapLibre ID collisions.
@@ -27,16 +48,16 @@ function makeSlot(base: string, n: number): Slot {
   return { srcId: p, fillId: `${p}-fill`, lineId: `${p}-line`, hlId: `${p}-hl` };
 }
 
-export function HexLayer({ map, sourceId, sourceUrl, colorExpression, onHexClick }: HexLayerProps) {
+export function HexLayer({ map, sourceId, sourceUrl, colorExpression, roadsAbove = true, onHexClick }: HexLayerProps) {
   const hoveredId      = useRef<string | null>(null);
   const colorExprRef   = useRef<unknown[] | null>(colorExpression);
+  const roadsAboveRef  = useRef(roadsAbove);
   const currentSlot    = useRef<Slot | null>(null);
   const currentFillRef = useRef<string | null>(null);
   const counterRef     = useRef(0);
 
-  // Keep ref current so the setup effect reads the latest color without it
-  // being in the dep array (which would rebuild the source on every variable change).
-  colorExprRef.current = colorExpression;
+  colorExprRef.current  = colorExpression;
+  roadsAboveRef.current = roadsAbove;
 
   useEffect(() => {
     if (!map || !sourceUrl) return;
@@ -66,6 +87,8 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, onHexClick
       promoteId: { [LAYER]: 'hex_id' },
     });
 
+    const beforeId = hexInsertBefore(map, roadsAboveRef.current);
+
     map.addLayer({
       id: slot.fillId, type: 'fill', source: slot.srcId, 'source-layer': LAYER,
       paint: {
@@ -73,19 +96,19 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, onHexClick
         'fill-opacity': 0,
         'fill-opacity-transition': { duration: FADE_MS, delay: 0 },
       },
-    });
+    }, beforeId);
     map.addLayer({
       id: slot.lineId, type: 'line', source: slot.srcId, 'source-layer': LAYER,
       minzoom: 10,
       paint: { 'line-color': 'rgba(0,0,0,0.15)', 'line-width': 0.6 },
-    });
+    }, beforeId);
     map.addLayer({
       id: slot.hlId, type: 'line', source: slot.srcId, 'source-layer': LAYER,
       paint: {
         'line-color': '#ffffff',
         'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2, 0],
       },
-    });
+    }, beforeId);
 
     // Apply color + start fade-in on the next frame so MapLibre registers
     // the initial opacity:0 before transitioning to the target.
@@ -160,6 +183,17 @@ export function HexLayer({ map, sourceId, sourceUrl, colorExpression, onHexClick
     map.on('click', fillId, onClick);
     return () => { map.off('click', fillId, onClick); };
   }, [map, sourceId, sourceUrl, onHexClick]);
+
+  // Roads above/below toggle — move existing layers without rebuilding the source
+  useEffect(() => {
+    if (!map) return;
+    const slot = currentSlot.current;
+    if (!slot) return;
+    const beforeId = hexInsertBefore(map, roadsAbove);
+    [slot.fillId, slot.lineId, slot.hlId].forEach(id => {
+      if (map.getLayer(id)) map.moveLayer(id, beforeId);
+    });
+  }, [map, roadsAbove]);
 
   // Color expression update — variable change only, no source rebuild
   useEffect(() => {

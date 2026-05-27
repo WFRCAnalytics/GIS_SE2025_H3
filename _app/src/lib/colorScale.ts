@@ -29,11 +29,20 @@ export function buildColorScale(variable: DVariable, breakData: BreakData): Colo
   const k = Math.min(breaks.length + 1, palette.length);
   const pal = palette.slice(0, k);
 
-  // Null-safe step: non-numeric (null/missing) properties → NULL_COLOR
+  // Null-safe step: non-numeric (null/missing) properties → NULL_COLOR.
+  // When breaks is empty (all-NA variable) fall back to a constant color so
+  // MapLibre never receives a degenerate step expression with < 1 stop pair.
   const buildExpr = (prop: string): unknown[] => {
-    const step: unknown[] = ['step', ['get', prop], pal[0]];
-    breaks.slice(0, pal.length - 1).forEach((b, i) => step.push(b, pal[i + 1]));
-    return ['case', ['!=', ['typeof', ['get', prop]], 'number'], NULL_COLOR, step];
+    const usable = breaks.slice(0, pal.length - 1);
+    let colorExpr: unknown;
+    if (usable.length === 0) {
+      colorExpr = pal[0];
+    } else {
+      const step: unknown[] = ['step', ['get', prop], pal[0]];
+      usable.forEach((b, i) => step.push(b, pal[i + 1]));
+      colorExpr = step;
+    }
+    return ['case', ['!=', ['typeof', ['get', prop]], 'number'], NULL_COLOR, colorExpr];
   };
 
   const stops: ColorStop[] = breaks.map((v, i) => ({

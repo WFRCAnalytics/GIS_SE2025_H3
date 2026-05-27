@@ -14,14 +14,16 @@ interface SidebarProps {
   selectedHex: PopupData | null;
   hexLoading: boolean;
   disabled: boolean;
+  roadsAbove: boolean;
   onVariableChange: (v: DVariable) => void;
   onLevelModeChange: (mode: LevelMode) => void;
   onCloseHex: () => void;
+  onRoadsAboveChange: (v: boolean) => void;
 }
 
 export function Sidebar({
   variable, level, levelMode, colorScale, selectedHex, hexLoading,
-  disabled, onVariableChange, onLevelModeChange, onCloseHex,
+  disabled, roadsAbove, onVariableChange, onLevelModeChange, onCloseHex, onRoadsAboveChange,
 }: SidebarProps) {
   const cfg = VARIABLE_CONFIGS[variable];
   return (
@@ -49,6 +51,20 @@ export function Sidebar({
           <path d="M3 7h8M7 3l4 4-4 4" stroke="#0067B1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         Drag divider to compare <strong>Smoothed</strong> vs <strong>Raw</strong>
+      </div>
+
+      {/* Roads layer toggle */}
+      <div style={styles.roadToggleWrap}>
+        <button
+          style={{ ...styles.roadToggle, ...(roadsAbove ? {} : styles.roadToggleActive) }}
+          onClick={() => onRoadsAboveChange(!roadsAbove)}
+          aria-pressed={!roadsAbove}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M2 6h8M2 3h8M2 9h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+          Roads {roadsAbove ? 'above' : 'below'} hexes
+        </button>
       </div>
 
       <div style={styles.sep} />
@@ -115,5 +131,27 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-text-disabled)',
     lineHeight: 1.6,
     borderTop: '1px solid var(--color-border)',
+  },
+  roadToggleWrap: {
+    padding: '4px 14px 8px',
+  },
+  roadToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    fontSize: 11,
+    fontWeight: 500,
+    color: 'var(--color-text-secondary)',
+    background: 'var(--color-surface-raised)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius)',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+  },
+  roadToggleActive: {
+    background: 'var(--color-primary)',
+    color: 'white',
+    borderColor: 'var(--color-primary)',
   },
 };

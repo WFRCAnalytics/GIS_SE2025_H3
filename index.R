@@ -96,16 +96,34 @@ flag_presence <- function(hex_sf, features_sf) {
 # ── Remote Data Fetch & Cache ──────────────────────────────────────────────────
 
 # Design
-# Note: the ArcGIS service stores sequential row numbers in hex_id, not H3 IDs.
-# Derive the H3 level-9 cell from each polygon centroid instead.
+# The ArcGIS service stores sequential row numbers in hex_id, not H3 IDs.
+# Source data is at H3 L8 resolution — derive the L8 cell from each polygon
+# centroid, then divide the score equally among its 7 L9 children.
 intersection_hex <- fetch_or_cache(
   url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/Street_Intersection_Density_2025/FeatureServer/3",
   cache_path = "_data/remote/design/intersection_hex.gpkg"
 ) |>
   (\(d) {
     xy <- sf::st_coordinates(sf::st_centroid(sf::st_transform(d, 4326L)))
-    dplyr::mutate(d, hex_id = as.character(h3o::h3_from_xy(xy[, 1L], xy[, 2L], resolution = 9L)))
+    dplyr::mutate(d, h8_id = as.character(h3o::h3_from_xy(xy[, 2L], xy[, 1L], resolution = 8L)))
   })()
+
+# Sum scores per L8 hex (handles the rare case of two polygons mapping to the same cell)
+int_l8 <- sf::st_drop_geometry(intersection_hex) |>
+  dplyr::select(h8_id, IntPtsPerM) |>
+  dplyr::group_by(h8_id) |>
+  dplyr::summarise(IntPtsPerM = sum(IntPtsPerM, na.rm = TRUE), .groups = "drop")
+
+# Divide score equally among each L8 cell's 7 L9 children.
+# flatten_h3 expands the H3Indexes list — same pattern as build_neighbor_index.
+.children <- h3o::get_children(h3o::h3_from_strings(int_l8$h8_id), resolution = 9L)
+int_l9 <- tibble::tibble(
+  h8_id  = rep(int_l8$h8_id, times = lengths(.children)),
+  hex_id = as.character(h3o::flatten_h3(.children))
+) |>
+  dplyr::left_join(dplyr::select(int_l8, h8_id, IntPtsPerM), by = "h8_id") |>
+  dplyr::transmute(hex_id, IntPtsPerM = IntPtsPerM / 7)
+rm(.children)
 
 # Destinations
 center_boundaries <- fetch_or_cache(
@@ -274,15 +292,9 @@ emp_s <- smooth_by_neighbors(hex_ids, se_hex$total_jobs,  neighbor_index)
 hw    <- hh_s * J2H
 diversity <- ifelse(hw == 0 | emp_s == 0, NA_real_, pmin(hw, emp_s) / pmax(hw, emp_s))
 
-## Design
-# inspect class(intersection_hex$hex_id) and class(se_hex$hex_id) before joining;
-# both layers use H3 string IDs → direct join on hex_id.
-# IntPtsPerM = (4-way intersections × 1) + (3-way × 0.5); summing is valid here.
+## Design — join L9 children expanded from int_l8
 design_raw <- tibble::tibble(hex_id = hex_ids) |>
-  dplyr::left_join(
-    sf::st_drop_geometry(intersection_hex) |> dplyr::select(hex_id, IntPtsPerM),
-    by = "hex_id"
-  ) |>
+  dplyr::left_join(int_l9, by = "hex_id") |>
   dplyr::pull(IntPtsPerM)
 design <- smooth_by_neighbors(hex_ids, design_raw, neighbor_index)
 
@@ -422,15 +434,9 @@ emp_s_l8 <- smooth_by_neighbors(h8_ids, se_l8$total_jobs,  neighbor_index_l8)
 hw_l8    <- hh_s_l8 * J2H
 diversity_l8 <- ifelse(hw_l8 == 0 | emp_s_l8 == 0, NA_real_, pmin(hw_l8, emp_s_l8) / pmax(hw_l8, emp_s_l8))
 
-## Design (L8) — sum IntPtsPerM across L9 children per L8 hex
-int_hex_l8 <- sf::st_drop_geometry(intersection_hex) |>
-  dplyr::select(hex_id, IntPtsPerM) |>
-  dplyr::mutate(h8_id = as.character(h3o::get_parents(h3o::h3_from_strings(hex_id), resolution = 8L))) |>
-  dplyr::group_by(h8_id) |>
-  dplyr::summarise(IntPtsPerM = sum(IntPtsPerM, na.rm = TRUE), .groups = "drop")
-
+## Design (L8) — direct join; int_l8 is already at L8 resolution
 design_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
-  dplyr::left_join(int_hex_l8, by = c("hex_id" = "h8_id")) |>
+  dplyr::left_join(int_l8, by = c("hex_id" = "h8_id")) |>
   dplyr::pull(IntPtsPerM)
 design_l8 <- smooth_by_neighbors(h8_ids, design_raw_l8, neighbor_index_l8)
 
@@ -610,7 +616,7 @@ export_pmtiles <- function(sf_obj, dest_path, min_zoom, max_zoom) {
                           min_zoom = min_zoom, max_zoom = max_zoom)
 }
 
-export_pmtiles(se_hex, file.path(app_data_dir, "l9.pmtiles"), min_zoom = 9L,  max_zoom = 14L)
+export_pmtiles(se_hex, file.path(app_data_dir, "l9.pmtiles"), min_zoom = 6L,  max_zoom = 14L)
 export_pmtiles(se_l8,  file.path(app_data_dir, "l8.pmtiles"), min_zoom = 6L,  max_zoom = 13L)
 
 # Pre-compute Jenks breaks for each variable (combined smoothed + raw so both

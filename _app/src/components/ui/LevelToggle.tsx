@@ -47,6 +47,7 @@ export function LevelToggle({ mode, activeLevel, onChange, disabled }: LevelTogg
 
 const styles: Record<string, React.CSSProperties> = {
   wrap: {
+    paddingTop: 12,
     paddingBottom: 12,
   },
   sectionLabel: {

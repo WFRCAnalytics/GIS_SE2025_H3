@@ -12,6 +12,7 @@ export default function App() {
   const [levelMode, setLevelMode] = useState<LevelMode>('auto');
   const [mapZoom, setMapZoom]     = useState<number>(DEFAULT_ZOOM);
   const [selectedHex, setSelectedHex] = useState<PopupData | null>(null);
+  const [roadsAbove, setRoadsAbove]   = useState<boolean>(true);
 
   const level: HexLevel = levelMode === 'auto'
     ? (mapZoom >= AUTO_LEVEL_ZOOM ? 'l9' : 'l8')
@@ -56,14 +57,17 @@ export default function App() {
           selectedHex={selectedHex}
           hexLoading={false}
           disabled={isLoading}
+          roadsAbove={roadsAbove}
           onVariableChange={setVariable}
           onLevelModeChange={handleLevelModeChange}
           onCloseHex={() => setSelectedHex(null)}
+          onRoadsAboveChange={setRoadsAbove}
         />
         <div style={styles.mapArea}>
           <SwipeMap
             sourceUrl={sourceUrl}
             colorScale={colorScale}
+            roadsAbove={roadsAbove}
             onHexClick={handleHexClick}
             onZoomChange={handleZoomChange}
           />
