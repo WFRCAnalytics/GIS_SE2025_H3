@@ -327,7 +327,7 @@ raw_destinations <- 0.6 * wc_score + 0.4 * amenity_score
 destinations     <- smooth_by_neighbors(hex_ids, raw_destinations, neighbor_index)
 
 ## Demographics
-# Household-weighted interpolation from BG → hex using SE 2025 projected HH as
+# Household-weighted interpolation from BG → hex using SE 2025 estimated HH as
 # the weights layer. Same vintage as the pipeline; Census blocks (Method A) gave
 # R²=0.92, RMSE=$10,919, bias=$103 vs this method — negligible average difference.
 demographics_interp <- tidycensus::interpolate_pw(
