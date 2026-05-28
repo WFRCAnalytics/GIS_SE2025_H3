@@ -98,7 +98,7 @@ Scores are summed to the L8 hex, distributed equally among each hex's 7 L9 child
 
 **What it captures:** Median household income as an equity lens. Lower-income households tend to depend more heavily on transit and active transportation, so this variable helps identify where built environment improvements would have the greatest equity benefit. It also contextualizes how the other D variables should be interpreted for a given community.
 
-ACS 5-year median household income (B19013_001, 2023) is interpolated from block-group polygons to H3 hexes using `tidycensus::interpolate_pw()`, with 2020 Census occupied housing unit counts (H1_002N) as the areal weight. Only populated hexes (`households > 0`) receive a value. Result is neighbor-smoothed.
+ACS 5-year median household income (B19013_001, 2023) is interpolated from block-group polygons to H3 hexes using `tidycensus::interpolate_pw()`, with SE 2025 projected household counts (from the same pipeline) as the areal weight. Using SE households keeps the interpolation internally consistent — a hex with more projected households pulls more of an overlapping block group's income signal. Only populated hexes (`households > 0`) receive a value. Result is neighbor-smoothed.
 
 > **Note:** Interpolating median incomes via weighted averaging is a known statistical approximation (averaging medians is not strictly correct). Flagged for future revision.
 
