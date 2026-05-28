@@ -533,12 +533,20 @@ se_hex_4326$tooltip <- sprintf(
 se_hex_raw_4326           <- se_hex_4326
 se_hex_raw_4326$diversity <- se_hex$diversity_raw
 
-div_colors <- c("#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c",
-                "#fc4e2a","#e31a1c","#bd0026","#800026")
-div_scale  <- mapgl::step_quantile(
+div_palette <- c("#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c",
+                 "#fc4e2a","#e31a1c","#bd0026","#800026")
+# Determine how many unique quantile breaks the data actually supports,
+# then generate exactly that many colors — avoids length-mismatch error
+# when repeated values reduce the number of available classes.
+.div_vals   <- c(se_hex_4326$diversity, se_hex$diversity_raw)
+.div_vals   <- .div_vals[!is.na(.div_vals)]
+n_div       <- length(unique(quantile(.div_vals, probs = seq(0, 1, length.out = length(div_palette) + 1L)))) - 1L
+n_div       <- max(2L, n_div)
+div_colors  <- grDevices::colorRampPalette(div_palette)(n_div)
+div_scale   <- mapgl::step_quantile(
   data_values = c(se_hex_4326$diversity, se_hex$diversity_raw),
   column      = "diversity",
-  n           = length(div_colors),
+  n           = n_div,
   colors      = div_colors,
   na_color    = "#cccccc"
 )
