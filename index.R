@@ -533,25 +533,16 @@ se_hex_4326$tooltip <- sprintf(
 se_hex_raw_4326           <- se_hex_4326
 se_hex_raw_4326$diversity <- se_hex$diversity_raw
 
-div_palette <- c("#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c",
-                 "#fc4e2a","#e31a1c","#bd0026","#800026")
-# step_quantile(n) internally uses seq(0,1,length.out=n+1) to compute breaks.
-# Iteratively reduce n until the unique breaks equal n, matching what the
-# function will find — stops the colors-length mismatch error.
-.div_vals <- c(se_hex_4326$diversity, se_hex$diversity_raw)
-.div_vals <- .div_vals[!is.na(.div_vals)]
-n_div     <- length(div_palette)
-for (.i in seq_len(n_div)) {
-  .actual <- length(unique(quantile(.div_vals, probs = seq(0, 1, length.out = n_div + 1L), na.rm = TRUE))) - 1L
-  if (.actual >= n_div) break
-  n_div <- .actual
-}
-n_div      <- max(2L, n_div)
-div_colors <- grDevices::colorRampPalette(div_palette)(n_div)
+div_colors <- c("#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c",
+                "#fc4e2a","#e31a1c","#bd0026","#800026")
+# Exclude zeros from break computation: many hexes now score 0 (pure residential
+# or employment), which floods quantile breaks. step() maps values below the
+# first break to the first color, so zeros still render as minimum diversity.
 div_scale  <- mapgl::step_quantile(
-  data_values = c(se_hex_4326$diversity, se_hex$diversity_raw),
+  data_values = Filter(function(x) !is.na(x) & x > 0,
+                       c(se_hex_4326$diversity, se_hex$diversity_raw)),
   column      = "diversity",
-  n           = n_div,
+  n           = length(div_colors),
   colors      = div_colors,
   na_color    = "#cccccc"
 )
