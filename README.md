@@ -32,7 +32,7 @@ The center cell retains the largest weight (40%), so each hex's own character do
 | 2 | ~0.30 mi | 0.20 | Near surroundings |
 | 3 | ~0.50 mi | 0.10 | Extended neighborhood |
 
-Weights are configurable at the top of `index.R` and must sum to 1. Edge cells (on the boundary of the study area) automatically adjust for their reduced neighbor count — the available neighbors are reweighted so no weight is lost.
+Weights are configurable at the top of `index.R` and must sum to 1. For edge cells (on the boundary of the study area), each present neighbor still receives the same fixed per-cell weight (`ring_weight / max_ring_size`), but missing neighbors simply contribute nothing — their weight is not redistributed. This means edge cells have a total weight slightly below 1.0, which is intentional: it avoids over-inflating the influence of the few present neighbors just because the cell happens to sit at a boundary.
 
 The app's **Raw (Unsmoothed)** map panel shows each variable computed with no neighbor influence (center weight = 1.0), allowing direct comparison of the two representations.
 
