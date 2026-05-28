@@ -290,7 +290,7 @@ density[hex_ids %in% na_hex_ids] <- NA_real_
 hh_s  <- smooth_by_neighbors(hex_ids, se_hex$households, neighbor_index)
 emp_s <- smooth_by_neighbors(hex_ids, se_hex$total_jobs,  neighbor_index)
 hw    <- hh_s * J2H
-diversity <- ifelse(hw == 0 | emp_s == 0, NA_real_, pmin(hw, emp_s) / pmax(hw, emp_s))
+diversity <- ifelse(hw == 0 & emp_s == 0, NA_real_, pmin(hw, emp_s) / pmax(hw, emp_s))
 
 ## Design — join L9 children expanded from int_l8
 design_raw <- tibble::tibble(hex_id = hex_ids) |>
@@ -364,7 +364,7 @@ density_raw   <- (se_hex$residential_units + se_hex$total_jobs / J2H) / L9_HEX_A
 density_raw[hex_ids %in% na_hex_ids] <- NA_real_
 
 hw_raw        <- se_hex$households * J2H
-diversity_raw <- ifelse(hw_raw == 0 | se_hex$total_jobs == 0, NA_real_,
+diversity_raw <- ifelse(hw_raw == 0 & se_hex$total_jobs == 0, NA_real_,
   pmin(hw_raw, se_hex$total_jobs) / pmax(hw_raw, se_hex$total_jobs))
 
 destinations_raw <- raw_destinations  # alias: raw_destinations computed at line 310
@@ -432,7 +432,7 @@ density_l8[h8_ids %in% na_hex_ids] <- NA_real_
 hh_s_l8  <- smooth_by_neighbors(h8_ids, se_l8$households, neighbor_index_l8)
 emp_s_l8 <- smooth_by_neighbors(h8_ids, se_l8$total_jobs,  neighbor_index_l8)
 hw_l8    <- hh_s_l8 * J2H
-diversity_l8 <- ifelse(hw_l8 == 0 | emp_s_l8 == 0, NA_real_, pmin(hw_l8, emp_s_l8) / pmax(hw_l8, emp_s_l8))
+diversity_l8 <- ifelse(hw_l8 == 0 & emp_s_l8 == 0, NA_real_, pmin(hw_l8, emp_s_l8) / pmax(hw_l8, emp_s_l8))
 
 ## Design (L8) — direct join; int_l8 is already at L8 resolution
 design_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
@@ -504,7 +504,7 @@ density_raw_l8   <- (se_l8$residential_units + se_l8$total_jobs / J2H) / L8_HEX_
 density_raw_l8[h8_ids %in% na_hex_ids] <- NA_real_
 
 hw_raw_l8        <- se_l8$households * J2H
-diversity_raw_l8 <- ifelse(hw_raw_l8 == 0 | se_l8$total_jobs == 0, NA_real_,
+diversity_raw_l8 <- ifelse(hw_raw_l8 == 0 & se_l8$total_jobs == 0, NA_real_,
   pmin(hw_raw_l8, se_l8$total_jobs) / pmax(hw_raw_l8, se_l8$total_jobs))
 
 ## Assemble L8

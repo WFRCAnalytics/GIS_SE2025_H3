@@ -46,7 +46,7 @@ The app's **Raw (Unsmoothed)** map panel shows each variable computed with no ne
 density = (smoothed_residential_units + smoothed_total_jobs / J2H) / HEX_AREA_SQMI
 ```
 
-Hexes in Tooele, Morgan, Summit, and Wasatch counties are set to `NA` pending supervisor guidance on appropriate methodology for those areas.
+Hexes in Tooele, Morgan, Summit, and Wasatch counties are set to `NA` pending further guidance on appropriate methodology for those areas.
 
 ---
 
@@ -59,7 +59,7 @@ hw        = smoothed_households × J2H
 diversity = min(hw, smoothed_jobs) / max(hw, smoothed_jobs)
 ```
 
-`NA` where either households or jobs are zero (undeveloped or single-use areas).
+`NA` only where both households and jobs are zero (genuinely undeveloped — division by zero). Pure residential areas (jobs = 0) correctly score 0, as do pure employment districts (households = 0).
 
 ---
 
