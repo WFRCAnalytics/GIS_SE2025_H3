@@ -176,15 +176,19 @@ Open the project in RStudio and source `index.R`. The script will:
 
 ## Output columns
 
-The output GDB layer contains all original SE columns plus:
+The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8` (H3 level-8) — each with all original SE columns plus the D variable columns below. Smoothed and raw versions use symmetric suffixes so it is unambiguous which is which.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `density` | numeric | Persons + jobs equivalent per sq mi (smoothed) |
-| `diversity` | numeric | HH–job balance ratio 0–1 (smoothed) |
-| `design` | numeric | Intersection score — IntScore (smoothed) |
-| `destinations` | numeric | WC center + amenity composite 0–1 (smoothed) |
-| `demographics` | numeric | Estimated median HH income, $ (smoothed) |
-| `transit_dist` | numeric | Distance to nearest frequent stop, miles (smoothed) |
-
-Raw (unsmoothed) equivalents are available as `density_raw`, `diversity_raw`, `design_raw`, `destinations_raw`, `demographics_raw`, and `transit_dist_raw`.
+| `density_smoothed` | numeric | Persons + jobs equivalent per sq mi (neighbor-smoothed) |
+| `density_raw` | numeric | Persons + jobs equivalent per sq mi (hex only, no smoothing) |
+| `diversity_smoothed` | numeric | HH–job balance ratio 0–1 (smoothed) |
+| `diversity_raw` | numeric | HH–job balance ratio 0–1 (raw) |
+| `design_smoothed` | numeric | Intersection score — IntScore (smoothed) |
+| `design_raw` | numeric | Intersection score — IntScore (raw) |
+| `destinations_smoothed` | numeric | WC center + amenity composite 0–1 (smoothed) |
+| `destinations_raw` | numeric | WC center + amenity composite 0–1 (raw) |
+| `demographics_smoothed` | numeric | Estimated median HH income, $ (smoothed) |
+| `demographics_raw` | numeric | Estimated median HH income, $ (raw) |
+| `transit_dist_smoothed` | numeric | Distance to nearest frequent stop, miles (smoothed) |
+| `transit_dist_raw` | numeric | Distance to nearest frequent stop, miles (raw) |

@@ -584,8 +584,15 @@ if (!dir.exists(file.path(root, "_output"))) dir.create(file.path(root, "_output
 gdb_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb"))
 zip_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
 
-sf::write_sf(se_hex, gdb_path, layer = GDB_NAME,                driver = "OpenFileGDB", append = FALSE)
-sf::write_sf(se_l8,  gdb_path, layer = paste0(GDB_NAME, "_l8"), driver = "OpenFileGDB", append = FALSE)
+# Rename smoothed D-variable columns to _smoothed so raw and smoothed names are
+# symmetric and unambiguous (density_smoothed / density_raw, etc.).
+d_vars <- c("density", "diversity", "design", "destinations", "demographics", "transit_dist")
+rename_smoothed <- function(sf_obj) {
+  dplyr::rename_with(sf_obj, ~ paste0(.x, "_smoothed"), dplyr::all_of(d_vars))
+}
+
+sf::write_sf(rename_smoothed(se_hex), gdb_path, layer = paste0(GDB_NAME, "_l9"), driver = "OpenFileGDB", append = FALSE)
+sf::write_sf(rename_smoothed(se_l8),  gdb_path, layer = paste0(GDB_NAME, "_l8"), driver = "OpenFileGDB", append = FALSE)
 
 zip(zip_path, files = gdb_path, flags = "-r9X")
 unlink(gdb_path, recursive = TRUE)
