@@ -5,7 +5,7 @@ import { SwipeMap } from './components/map/SwipeMap';
 import { HexInfoBox } from './components/map/HexInfoBox';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
 import { useData } from './hooks/useData';
-import { AUTO_LEVEL_ZOOM, DEFAULT_ZOOM } from './constants';
+import { AUTO_LEVEL_ZOOM, DEFAULT_ZOOM, VARIABLE_CONFIGS } from './constants';
 import type { DVariable, HexLevel, LevelMode, PopupData } from './types';
 
 export default function App() {
@@ -83,6 +83,12 @@ export default function App() {
             onHexHover={handleHexHover}
             onZoomChange={handleZoomChange}
           />
+          {/* Map title — centered at top of map area */}
+          <div style={styles.mapTitle}>
+            <span style={styles.mapTitleLabel}>{VARIABLE_CONFIGS[variable].label}</span>
+            <span style={styles.mapTitleSep}>—</span>
+            <span style={styles.mapTitleFull}>{VARIABLE_CONFIGS[variable].fullName}</span>
+          </div>
           <HexInfoBox data={hoveredHex} activeVariable={variable} />
           {compositeStatus !== 'ready' && <LoadingOverlay status={compositeStatus} error={errorMsg} />}
         </div>
@@ -106,5 +112,37 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     position: 'relative',
     overflow: 'hidden',
+  },
+  mapTitle: {
+    position: 'absolute',
+    top: 10,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 5,
+    background: 'rgba(255,255,255,0.92)',
+    backdropFilter: 'blur(4px)',
+    borderRadius: 4,
+    padding: '4px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+    whiteSpace: 'nowrap' as const,
+    pointerEvents: 'none' as const,
+  },
+  mapTitleLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--color-primary)',
+    letterSpacing: '0.01em',
+  },
+  mapTitleSep: {
+    fontSize: 12,
+    color: 'var(--color-text-disabled)',
+  },
+  mapTitleFull: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: 'var(--color-text)',
   },
 };
