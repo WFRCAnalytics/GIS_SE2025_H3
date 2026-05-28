@@ -83,7 +83,14 @@ Scores are summed to the L8 hex, distributed equally among each hex's 7 L9 child
 **What it captures:** Whether an area is *near* places people need to reach. Proximity to activity centers and everyday amenities reduces trip distances, supports walking for errands, and makes transit more attractive. Combines two components:
 
 - **Wasatch Choice Center score (60%)** — area-weighted overlap with WC centers, weighted by center type (Metropolitan Center = 1.0 down to Special/Industrial = 0.0). Capped at 1.0. Center type weights are a named vector at the top of `index.R` and can be freely edited.
-- **Amenity presence score (40%)** — mean of five binary flags: healthcare facility, high school, grocery store, city hall / county office, park. Each is 1 if ≥1 qualifying feature intersects the hex.
+  - [WC Centers and Regional Land Uses](https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/WCV_Centers_and_Regional_Land_Uses/FeatureServer/0) — WFRC ArcGIS REST
+
+- **Amenity presence score (40%)** — mean of five binary flags (1 if ≥1 qualifying feature intersects the hex, 0 otherwise):
+  - Healthcare: [Licensed Health Care Facilities](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0) — AGRC
+  - High school: [Schools Pre-K to 12](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0) — AGRC (filtered to high schools)
+  - Grocery store: [Utah Grocery and Food Stores](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/UtahGroceryAndFoodStores_DAF/FeatureServer/0) — WFRC (grocery stores, specialty grocery, supermarkets)
+  - City hall / county office: [Community Services](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/CommunityServices_gdb/FeatureServer/0) — WFRC (filtered to city halls and county offices)
+  - Park: [Utah Parks Local](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahParksLocal/FeatureServer/0) — AGRC · [Access to Parks](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/AccessToParks_082024_gdb/FeatureServer/2) — WFRC (union of both layers)
 
 ---
 
