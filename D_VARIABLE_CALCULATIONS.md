@@ -211,7 +211,7 @@ if (!file.exists(bg_income_dist_path)) {
 }
 ```
 
-The B19001 ACS table provides household **counts** (not percentages or medians) for 11 income brackets. See [Income Diversity Index](#5b-income-diversity-index) for bracket definitions and midpoints.
+The B19001 ACS table provides household **counts** (not percentages or medians) for 11 income brackets. See [Income Diversity Index](#5b-income-diversity-index) for bracket definitions.
 
 > **Note on geometry column name:** `sf::write_sf` writes GPKG files with the geometry column named `"geom"` (GDAL default). When reading back via `sf::read_sf`, the active geometry column retains that name. `dplyr::select()` on an sf object automatically retains the active geometry — never name the geometry column explicitly in `select()` calls, as the name may differ between fresh download and cached read.
 
@@ -433,7 +433,7 @@ Each layer contains all original SE columns plus:
 | `destinations_park_smoothed` / `_raw` | Park flag |
 | `destinations_ems_smoothed` / `_raw` | EMS station flag |
 | `demographics_smoothed` / `_raw` | Median HH income, $ |
-| `income_diversity_smoothed` / `_raw` | Income Diversity Index (1 − Gini), 0–1 |
+| `income_diversity_smoothed` / `_raw` | Income Diversity Index (Shannon entropy), 0–1 |
 | `transit_dist_smoothed` / `_raw` | Distance to frequent stop, miles |
 
 ---

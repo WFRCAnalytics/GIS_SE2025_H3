@@ -11,7 +11,7 @@ Calculates six **D variables** — a standard framework for measuring urban form
 | 3 | **Design** | Street Network Design | How well-connected the street grid is; more intersections = more route choices |
 | 4 | **Destinations** | Destination Accessibility | Proximity to activity centers and everyday amenities (composite + 7 sub-components) |
 | 5 | **Demographics** | Socioeconomic Status | Median household income as an equity lens |
-| 5b | **Income Diversity** | Income Diversity Index | Income concentration across households (derived from Gini; 0 = perfect equality, 1 = maximum concentration) |
+| 5b | **Income Diversity** | Income Diversity Index | Shannon entropy of household income brackets; 0 = all households in one bracket, 1 = perfectly even mix across all brackets |
 | 6 | **Distance to Transit** | Transit Access | Distance to the nearest frequent-service transit stop |
 
 The D-variable framework originates from Cervero & Kockelman (1997) and has been refined by Ewing & Cervero (2010). These six dimensions collectively describe the built environment features most strongly associated with mode choice and vehicle miles traveled.
@@ -288,8 +288,8 @@ The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8`
 | `destinations_raw` | numeric | WC center + amenity composite 0–1 (raw) |
 | `demographics_smoothed` | numeric | Estimated median HH income, $ (smoothed) |
 | `demographics_raw` | numeric | Estimated median HH income, $ (raw) |
-| `income_diversity_smoothed` | numeric | Income Diversity Index (1 − Gini) 0–1 (smoothed) |
-| `income_diversity_raw` | numeric | Income Diversity Index (1 − Gini) 0–1 (raw) |
+| `income_diversity_smoothed` | numeric | Income Diversity Index (Shannon entropy) 0–1 (smoothed) |
+| `income_diversity_raw` | numeric | Income Diversity Index (Shannon entropy) 0–1 (raw) |
 | `transit_dist_smoothed` | numeric | Distance to nearest frequent stop, miles (smoothed) |
 | `transit_dist_raw` | numeric | Distance to nearest frequent stop, miles (raw) |
 
