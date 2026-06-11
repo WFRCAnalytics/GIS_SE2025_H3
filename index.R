@@ -41,18 +41,23 @@ options(tigris_use_cache = TRUE)
 
 # ── Helper Functions ───────────────────────────────────────────────────────────
 
-fetch_or_cache <- function(url, cache_path, layer = NULL) {
+fetch_or_cache <- function(url, cache_path, layer = NULL, where = NULL) {
   full_path <- file.path(root, cache_path)
-  if (file.exists(full_path))
-    return(if (is.null(layer)) sf::read_sf(full_path) else sf::read_sf(full_path, layer = layer))
-  dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
-  data <- tryCatch(
-    arcgislayers::arc_select(arcgislayers::arc_open(url)),
-    error = function(e) stop("Failed to fetch '", cache_path, "': ", conditionMessage(e))
-  )
-  if (is.na(sf::st_crs(data))) sf::st_crs(data) <- 4326L
-  sf::write_sf(data, full_path, driver = "GPKG")
-  data
+  if (!file.exists(full_path)) {
+    dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
+    data <- tryCatch(
+      arcgislayers::arc_select(arcgislayers::arc_open(url)),
+      error = function(e) stop("Failed to fetch '", cache_path, "': ", conditionMessage(e))
+    )
+    if (is.na(sf::st_crs(data))) sf::st_crs(data) <- 4326L
+    sf::write_sf(data, full_path, driver = "GPKG")
+  }
+  if (is.null(where)) {
+    if (is.null(layer)) sf::read_sf(full_path) else sf::read_sf(full_path, layer = layer)
+  } else {
+    lyr <- if (is.null(layer)) sf::st_layers(full_path)$name[[1L]] else layer
+    sf::read_sf(full_path, query = sprintf('SELECT * FROM "%s" WHERE %s', lyr, where))
+  }
 }
 
 # k = last non-zero ring; per-neighbor weight = ring_weight / (6 × ring_number).
@@ -132,19 +137,23 @@ center_boundaries <- fetch_or_cache(
 )
 health_care <- fetch_or_cache(
   url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0",
-  cache_path = "_data/remote/destinations/health_care.gpkg"
+  cache_path = "_data/remote/destinations/health_care.gpkg",
+  where      = "LICENSE_TYPE NOT IN ('Assisted Living Facility - Type I', 'Assisted Living Facility - Type II', 'Personal Care Agency', 'Home Health Agency', 'Hospice', 'Birthing Center', 'Abortion Clinic')"
 )
 schools <- fetch_or_cache(
   url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0",
-  cache_path = "_data/remote/destinations/schools.gpkg"
+  cache_path = "_data/remote/destinations/schools.gpkg",
+  where      = "SchoolLevel LIKE '%high%'"
 )
 grocery_stores <- fetch_or_cache(
   url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/UtahGroceryAndFoodStores_DAF/FeatureServer/0",
-  cache_path = "_data/remote/destinations/grocery_stores.gpkg"
+  cache_path = "_data/remote/destinations/grocery_stores.gpkg",
+  where      = "TYPE IN ('Grocery Store', 'Specialty Grocery', 'Supermarket')"
 )
 city_halls <- fetch_or_cache(
   url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/CommunityServices_gdb/FeatureServer/0",
-  cache_path = "_data/remote/destinations/city_halls.gpkg"
+  cache_path = "_data/remote/destinations/city_halls.gpkg",
+  where      = "Facility LIKE '%City Hall%' OR Facility LIKE '%County Office%'"
 )
 parks_local <- fetch_or_cache(
   url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahParksLocal/FeatureServer/0",
@@ -153,6 +162,11 @@ parks_local <- fetch_or_cache(
 parks_wfrc <- fetch_or_cache(
   url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/AccessToParks_082024_gdb/FeatureServer/2",
   cache_path = "_data/remote/destinations/parks_wfrc.gpkg"
+)
+ems_stations <- fetch_or_cache(
+  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/EmergencyMedicalServices/FeatureServer/0",
+  cache_path = "_data/remote/destinations/ems_stations.gpkg",
+  where      = "NAME NOT LIKE '%PRISON%' AND NAME NOT LIKE '%-DOD'"
 )
 
 # Demographics: ACS BG median income
@@ -213,12 +227,6 @@ cb_proj <- center_boundaries |>
   dplyr::mutate(tier_weight = WC_CENTER_WEIGHTS[CenterType]) |>
   dplyr::filter(!is.na(tier_weight), tier_weight > 0)
 
-# inspect names(schools) — filter field and value may differ from "SchoolLevel"/"high"
-high_schools    <- dplyr::filter(schools,        grepl("high", SchoolLevel,  ignore.case = TRUE))
-# inspect names(grocery_stores) — confirm TYPE field name
-grocery_filt    <- dplyr::filter(grocery_stores, TYPE %in% c("Grocery Store", "Specialty Grocery", "Supermarket"))
-# inspect names(city_halls) — confirm Facility field name
-city_halls_filt <- dplyr::filter(city_halls,     grepl("City Hall|County Office", Facility, ignore.case = TRUE))
 
 # ── Transit: shared setup (used by both L9 and L8) ────────────────────────────
 
@@ -317,14 +325,23 @@ wc_score <- tibble::tibble(hex_id = hex_ids) |>
   dplyr::pull(score)
 
 healthcare_flag <- flag_presence(se_hex, health_care)
-highschool_flag <- flag_presence(se_hex, high_schools)
-grocery_flag    <- flag_presence(se_hex, grocery_filt)
-cityhall_flag   <- flag_presence(se_hex, city_halls_filt)
+highschool_flag <- flag_presence(se_hex, schools)
+grocery_flag    <- flag_presence(se_hex, grocery_stores)
+cityhall_flag   <- flag_presence(se_hex, city_halls)
 park_flag       <- pmax(flag_presence(se_hex, parks_local), flag_presence(se_hex, parks_wfrc))
+ems_flag        <- flag_presence(se_hex, ems_stations)
 
-amenity_score    <- (healthcare_flag + highschool_flag + grocery_flag + cityhall_flag + park_flag) / 5
+amenity_score    <- (healthcare_flag + highschool_flag + grocery_flag + cityhall_flag + park_flag + ems_flag) / 6
 raw_destinations <- 0.6 * wc_score + 0.4 * amenity_score
 destinations     <- smooth_by_neighbors(hex_ids, raw_destinations, neighbor_index)
+
+destinations_center   <- smooth_by_neighbors(hex_ids, wc_score,        neighbor_index)
+destinations_health   <- smooth_by_neighbors(hex_ids, healthcare_flag, neighbor_index)
+destinations_school   <- smooth_by_neighbors(hex_ids, highschool_flag, neighbor_index)
+destinations_grocery  <- smooth_by_neighbors(hex_ids, grocery_flag,    neighbor_index)
+destinations_cityhall <- smooth_by_neighbors(hex_ids, cityhall_flag,   neighbor_index)
+destinations_park     <- smooth_by_neighbors(hex_ids, park_flag,       neighbor_index)
+destinations_ems      <- smooth_by_neighbors(hex_ids, ems_flag,        neighbor_index)
 
 ## Demographics
 # Household-weighted interpolation from BG → hex using SE 2025 estimated HH as
@@ -370,18 +387,32 @@ diversity_raw <- ifelse(hw_raw == 0 & se_hex$total_jobs == 0, NA_real_,
 destinations_raw <- raw_destinations  # alias: raw_destinations computed at line 310
 
 ## Assemble L9
-se_hex$density          <- density
-se_hex$density_raw      <- density_raw
-se_hex$diversity        <- diversity
-se_hex$diversity_raw    <- diversity_raw
-se_hex$design           <- design
-se_hex$design_raw       <- design_raw
-se_hex$destinations     <- destinations
-se_hex$destinations_raw <- destinations_raw
-se_hex$demographics     <- demographics
-se_hex$demographics_raw <- demographics_raw
-se_hex$transit_dist     <- transit_dist
-se_hex$transit_dist_raw <- transit_dist_raw
+se_hex$density                   <- density
+se_hex$density_raw               <- density_raw
+se_hex$diversity                 <- diversity
+se_hex$diversity_raw             <- diversity_raw
+se_hex$design                    <- design
+se_hex$design_raw                <- design_raw
+se_hex$destinations              <- destinations
+se_hex$destinations_raw          <- destinations_raw
+se_hex$destinations_center       <- destinations_center
+se_hex$destinations_center_raw   <- wc_score
+se_hex$destinations_health       <- destinations_health
+se_hex$destinations_health_raw   <- healthcare_flag
+se_hex$destinations_school       <- destinations_school
+se_hex$destinations_school_raw   <- highschool_flag
+se_hex$destinations_grocery      <- destinations_grocery
+se_hex$destinations_grocery_raw  <- grocery_flag
+se_hex$destinations_cityhall     <- destinations_cityhall
+se_hex$destinations_cityhall_raw <- cityhall_flag
+se_hex$destinations_park         <- destinations_park
+se_hex$destinations_park_raw     <- park_flag
+se_hex$destinations_ems          <- destinations_ems
+se_hex$destinations_ems_raw      <- ems_flag
+se_hex$demographics              <- demographics
+se_hex$demographics_raw          <- demographics_raw
+se_hex$transit_dist              <- transit_dist
+se_hex$transit_dist_raw          <- transit_dist_raw
 
 # ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
 
@@ -459,15 +490,24 @@ wc_score_l8 <- tibble::tibble(hex_id = h8_ids) |>
   dplyr::pull(score)
 
 healthcare_flag_l8 <- flag_presence(se_l8, health_care)
-highschool_flag_l8 <- flag_presence(se_l8, high_schools)
-grocery_flag_l8    <- flag_presence(se_l8, grocery_filt)
-cityhall_flag_l8   <- flag_presence(se_l8, city_halls_filt)
+highschool_flag_l8 <- flag_presence(se_l8, schools)
+grocery_flag_l8    <- flag_presence(se_l8, grocery_stores)
+cityhall_flag_l8   <- flag_presence(se_l8, city_halls)
 park_flag_l8       <- pmax(flag_presence(se_l8, parks_local), flag_presence(se_l8, parks_wfrc))
+ems_flag_l8        <- flag_presence(se_l8, ems_stations)
 
 amenity_score_l8    <- (healthcare_flag_l8 + highschool_flag_l8 + grocery_flag_l8 +
-                        cityhall_flag_l8 + park_flag_l8) / 5
+                        cityhall_flag_l8 + park_flag_l8 + ems_flag_l8) / 6
 raw_destinations_l8 <- 0.6 * wc_score_l8 + 0.4 * amenity_score_l8
 destinations_l8     <- smooth_by_neighbors(h8_ids, raw_destinations_l8, neighbor_index_l8)
+
+destinations_center_l8   <- smooth_by_neighbors(h8_ids, wc_score_l8,         neighbor_index_l8)
+destinations_health_l8   <- smooth_by_neighbors(h8_ids, healthcare_flag_l8,  neighbor_index_l8)
+destinations_school_l8   <- smooth_by_neighbors(h8_ids, highschool_flag_l8,  neighbor_index_l8)
+destinations_grocery_l8  <- smooth_by_neighbors(h8_ids, grocery_flag_l8,     neighbor_index_l8)
+destinations_cityhall_l8 <- smooth_by_neighbors(h8_ids, cityhall_flag_l8,    neighbor_index_l8)
+destinations_park_l8     <- smooth_by_neighbors(h8_ids, park_flag_l8,        neighbor_index_l8)
+destinations_ems_l8      <- smooth_by_neighbors(h8_ids, ems_flag_l8,         neighbor_index_l8)
 
 ## Demographics (L8)
 demographics_interp_l8 <- tidycensus::interpolate_pw(
@@ -508,18 +548,32 @@ diversity_raw_l8 <- ifelse(hw_raw_l8 == 0 & se_l8$total_jobs == 0, NA_real_,
   pmin(hw_raw_l8, se_l8$total_jobs) / pmax(hw_raw_l8, se_l8$total_jobs))
 
 ## Assemble L8
-se_l8$density          <- density_l8
-se_l8$density_raw      <- density_raw_l8
-se_l8$diversity        <- diversity_l8
-se_l8$diversity_raw    <- diversity_raw_l8
-se_l8$design           <- design_l8
-se_l8$design_raw       <- design_raw_l8
-se_l8$destinations     <- destinations_l8
-se_l8$destinations_raw <- raw_destinations_l8
-se_l8$demographics     <- demographics_l8
-se_l8$demographics_raw <- demographics_raw_l8
-se_l8$transit_dist     <- transit_dist_l8
-se_l8$transit_dist_raw <- transit_dist_raw_l8
+se_l8$density                    <- density_l8
+se_l8$density_raw                <- density_raw_l8
+se_l8$diversity                  <- diversity_l8
+se_l8$diversity_raw              <- diversity_raw_l8
+se_l8$design                     <- design_l8
+se_l8$design_raw                 <- design_raw_l8
+se_l8$destinations               <- destinations_l8
+se_l8$destinations_raw           <- raw_destinations_l8
+se_l8$destinations_center        <- destinations_center_l8
+se_l8$destinations_center_raw    <- wc_score_l8
+se_l8$destinations_health        <- destinations_health_l8
+se_l8$destinations_health_raw    <- healthcare_flag_l8
+se_l8$destinations_school        <- destinations_school_l8
+se_l8$destinations_school_raw    <- highschool_flag_l8
+se_l8$destinations_grocery       <- destinations_grocery_l8
+se_l8$destinations_grocery_raw   <- grocery_flag_l8
+se_l8$destinations_cityhall      <- destinations_cityhall_l8
+se_l8$destinations_cityhall_raw  <- cityhall_flag_l8
+se_l8$destinations_park          <- destinations_park_l8
+se_l8$destinations_park_raw      <- park_flag_l8
+se_l8$destinations_ems           <- destinations_ems_l8
+se_l8$destinations_ems_raw       <- ems_flag_l8
+se_l8$demographics               <- demographics_l8
+se_l8$demographics_raw           <- demographics_raw_l8
+se_l8$transit_dist               <- transit_dist_l8
+se_l8$transit_dist_raw           <- transit_dist_raw_l8
 
 # ── Visualization: Diversity — smoothed vs raw (L9) ───────────────────────────
 
@@ -613,6 +667,13 @@ app_cols <- c(
   "diversity",    "diversity_raw",
   "design",       "design_raw",
   "destinations", "destinations_raw",
+  "destinations_center",   "destinations_center_raw",
+  "destinations_health",   "destinations_health_raw",
+  "destinations_school",   "destinations_school_raw",
+  "destinations_grocery",  "destinations_grocery_raw",
+  "destinations_cityhall", "destinations_cityhall_raw",
+  "destinations_park",     "destinations_park_raw",
+  "destinations_ems",      "destinations_ems_raw",
   "demographics", "demographics_raw",
   "transit_dist", "transit_dist_raw"
 )
@@ -636,7 +697,13 @@ N_BREAKS <- 9L
 
 compute_level_breaks <- function(sf_obj) {
   df   <- sf::st_drop_geometry(sf_obj)
-  vars <- c("density", "diversity", "design", "destinations", "demographics", "transit_dist")
+  vars <- c(
+    "density", "diversity", "design",
+    "destinations",
+    "destinations_center", "destinations_health", "destinations_school",
+    "destinations_grocery", "destinations_cityhall", "destinations_park", "destinations_ems",
+    "demographics", "transit_dist"
+  )
   lapply(setNames(vars, vars), function(v) {
     vals <- c(df[[v]], df[[paste0(v, "_raw")]])
     vals <- vals[!is.na(vals) & is.finite(vals)]
@@ -644,7 +711,7 @@ compute_level_breaks <- function(sf_obj) {
     if (k < 2L) {
       return(list(breaks = numeric(0), min = min(vals, na.rm = TRUE), max = max(vals, na.rm = TRUE)))
     }
-    brks <- classInt::classIntervals(vals, k, style = "jenks")$brks
+    brks <- classInt::classIntervals(vals, k, style = "fisher")$brks
     list(
       # I(unname()) strips H3-ID names and prevents auto_unbox on length-1 vectors
       breaks = I(unname(round(brks[-c(1L, length(brks))], 8L))),

@@ -1,6 +1,6 @@
 # SE 2025 Urban Form D Variables (H3)
 
-Calculates six **D variables** — a standard framework for measuring urban form and its relationship to travel behavior — for the WFRC/MAG region at H3 level-9 hexagon resolution using WFRC SE 2025 socioeconomic data. Each variable is available at two H3 resolutions (level 8 and level 9) and as both a smoothed and a raw value.
+Calculates six **D variables** — a standard framework for measuring urban form and its relationship to travel behavior — for the WFRC/MAG region at H3 level-9 hexagon resolution using WFRC SE 2025 socioeconomic data. Each variable is available at two H3 resolutions (level 8 and level 9) and as both a smoothed and a raw value. The Destinations variable additionally exposes seven sub-component columns (one per amenity type) for drill-down analysis.
 
 ## Variables
 
@@ -9,7 +9,7 @@ Calculates six **D variables** — a standard framework for measuring urban form
 | 1 | **Density** | Population + Employment Density | How intensely an area is used — residents and workers per square mile |
 | 2 | **Diversity** | Land Use Mix | Balance between homes and jobs; high scores indicate mixed-use areas |
 | 3 | **Design** | Street Network Design | How well-connected the street grid is; more intersections = more route choices |
-| 4 | **Destinations** | Destination Accessibility | Proximity to activity centers and everyday amenities |
+| 4 | **Destinations** | Destination Accessibility | Proximity to activity centers and everyday amenities (composite + 7 sub-components) |
 | 5 | **Demographics** | Socioeconomic Status | Median household income as an equity lens |
 | 6 | **Distance to Transit** | Transit Access | Distance to the nearest frequent-service transit stop |
 
@@ -85,12 +85,23 @@ Scores are summed to the L8 hex, distributed equally among each hex's 7 L9 child
 - **Wasatch Choice Center score (60%)** — area-weighted overlap with WC centers, weighted by center type (Metropolitan Center = 1.0 down to Special/Industrial = 0.0). Capped at 1.0. Center type weights are a named vector at the top of `index.R` and can be freely edited.
   - [WC Centers and Regional Land Uses](https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/WCV_Centers_and_Regional_Land_Uses/FeatureServer/0) — WFRC ArcGIS REST
 
-- **Amenity presence score (40%)** — mean of five binary flags (1 if ≥1 qualifying feature intersects the hex, 0 otherwise):
-  - Healthcare: [Licensed Health Care Facilities](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0) — AGRC
-  - High school: [Schools Pre-K to 12](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0) — AGRC (filtered to high schools)
-  - Grocery store: [Utah Grocery and Food Stores](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/UtahGroceryAndFoodStores_DAF/FeatureServer/0) — WFRC (grocery stores, specialty grocery, supermarkets)
-  - City hall / county office: [Community Services](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/CommunityServices_gdb/FeatureServer/0) — WFRC (filtered to city halls and county offices)
+- **Amenity presence score (40%)** — mean of six binary flags (1 if ≥1 qualifying feature intersects the hex, 0 otherwise):
+  - Healthcare: [Licensed Health Care Facilities](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0) — AGRC. Residential-care and home-based service types excluded (Assisted Living Facility Type I & II, Personal Care Agency, Home Health Agency, Hospice, Birthing Center, Abortion Clinic).
+  - High school: [Schools Pre-K to 12](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0) — AGRC (filtered to `SchoolLevel LIKE '%high%'`)
+  - Grocery store: [Utah Grocery and Food Stores](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/UtahGroceryAndFoodStores_DAF/FeatureServer/0) — WFRC (`TYPE IN ('Grocery Store', 'Specialty Grocery', 'Supermarket')`)
+  - City hall / county office: [Community Services](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/CommunityServices_gdb/FeatureServer/0) — WFRC (`Facility LIKE '%City Hall%' OR Facility LIKE '%County Office%'`)
   - Park: [Utah Parks Local](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahParksLocal/FeatureServer/0) — AGRC · [Access to Parks](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/AccessToParks_082024_gdb/FeatureServer/2) — WFRC (union of both layers)
+  - Emergency Medical Services: [Emergency Medical Services](https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/EmergencyMedicalServices/FeatureServer/0) — AGRC. Prison and military-base stations excluded (`NAME NOT LIKE '%PRISON%' AND NAME NOT LIKE '%-DOD'`).
+
+```
+amenity_score    = (healthcare + highschool + grocery + cityhall + park + ems) / 6
+raw_destinations = 0.6 × wc_score + 0.4 × amenity_score
+destinations     = smooth_by_neighbors(raw_destinations)
+```
+
+Each amenity component is also smoothed independently and stored as a separate column (see [Output columns](#output-columns)) to support per-amenity analysis.
+
+All source-level filters are applied as SQL `WHERE` clauses at read time via the `fetch_or_cache` helper — the cached `.gpkg` files always contain the full unfiltered dataset, so filters can be adjusted without re-downloading.
 
 ---
 
@@ -139,12 +150,17 @@ WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
 | WFRC SE 2025 (input) | Local GDB zip | `_data/wfrc_se_2025_rtp23.gdb.zip` |
 | Street intersection density | ArcGIS REST | `_data/remote/design/` |
 | WC Centers & Land Uses | ArcGIS REST | `_data/remote/destinations/` |
-| Healthcare, schools, grocery, parks | ArcGIS REST | `_data/remote/destinations/` |
+| Healthcare facilities | ArcGIS REST | `_data/remote/destinations/health_care.gpkg` |
+| Schools (PreK–12) | ArcGIS REST | `_data/remote/destinations/schools.gpkg` |
+| Grocery & food stores | ArcGIS REST | `_data/remote/destinations/grocery_stores.gpkg` |
+| Community services (city halls) | ArcGIS REST | `_data/remote/destinations/city_halls.gpkg` |
+| Parks (local + WFRC) | ArcGIS REST | `_data/remote/destinations/` |
+| Emergency Medical Services | ArcGIS REST | `_data/remote/destinations/ems_stations.gpkg` |
 | ACS BG median income (B19013_001) | tidycensus | `_data/remote/demographics/bg_income.gpkg` |
 | UTA GTFS | download.file | `_data/remote/transit/` |
 | Utah county boundaries | tigris | `_data/remote/boundaries/` |
 
-Remote data is fetched once and cached locally as `.gpkg` files. Re-runs read from cache.
+Remote data is fetched once and cached locally as `.gpkg` files (full, unfiltered). SQL `WHERE` filters are applied at read time on each run. To change a filter, edit the `where` argument in `fetch_or_cache(...)` and re-run `index.R` — no re-download required.
 
 ## Project structure
 
@@ -178,12 +194,15 @@ tidycensus::census_api_key("YOUR_KEY", install = TRUE)
 Open the project in RStudio and source `index.R`. The script will:
 
 1. Fetch and cache all remote data (first run only — subsequent runs load from cache)
-2. Calculate all six D variables at both H3 level 8 and level 9
+2. Calculate all six D variables plus seven Destinations sub-components at both H3 level 8 and level 9
 3. Export `_output/wfrc_se_2025_rtp23.gdb.zip` with all original SE columns plus D variable columns
+4. Export PMTiles (`_app/public/l9.pmtiles`, `_app/public/l8.pmtiles`) and `_app/public/metadata.json` for the web app
 
 ## Output columns
 
 The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8` (H3 level-8) — each with all original SE columns plus the D variable columns below. Smoothed and raw versions use symmetric suffixes so it is unambiguous which is which.
+
+### Core D variables
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -199,3 +218,24 @@ The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8`
 | `demographics_raw` | numeric | Estimated median HH income, $ (raw) |
 | `transit_dist_smoothed` | numeric | Distance to nearest frequent stop, miles (smoothed) |
 | `transit_dist_raw` | numeric | Distance to nearest frequent stop, miles (raw) |
+
+### Destinations sub-components
+
+Each amenity is also stored as its own smoothed + raw column pair for per-amenity drill-down.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `destinations_center_smoothed` | numeric | WC center area-overlap score 0–1 (smoothed) |
+| `destinations_center_raw` | numeric | WC center area-overlap score 0–1 (raw) |
+| `destinations_health_smoothed` | numeric | Healthcare presence flag 0/1 (smoothed) |
+| `destinations_health_raw` | numeric | Healthcare presence flag 0/1 (raw) |
+| `destinations_school_smoothed` | numeric | High school presence flag 0/1 (smoothed) |
+| `destinations_school_raw` | numeric | High school presence flag 0/1 (raw) |
+| `destinations_grocery_smoothed` | numeric | Grocery store presence flag 0/1 (smoothed) |
+| `destinations_grocery_raw` | numeric | Grocery store presence flag 0/1 (raw) |
+| `destinations_cityhall_smoothed` | numeric | City hall / county office presence flag 0/1 (smoothed) |
+| `destinations_cityhall_raw` | numeric | City hall / county office presence flag 0/1 (raw) |
+| `destinations_park_smoothed` | numeric | Park presence flag 0/1 (smoothed) |
+| `destinations_park_raw` | numeric | Park presence flag 0/1 (raw) |
+| `destinations_ems_smoothed` | numeric | EMS station presence flag 0/1 (smoothed) |
+| `destinations_ems_raw` | numeric | EMS station presence flag 0/1 (raw) |

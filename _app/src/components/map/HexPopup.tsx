@@ -1,6 +1,10 @@
-import type { PopupData } from '../../types';
+import type { PopupData, DVariable } from '../../types';
 import { D_VARIABLES, VARIABLE_CONFIGS } from '../../constants';
-import type { DVariable } from '../../types';
+
+const SUB_VARS = new Set<DVariable>([
+  'destinations_center', 'destinations_health', 'destinations_school',
+  'destinations_grocery', 'destinations_cityhall', 'destinations_park', 'destinations_ems',
+]);
 
 interface HexPopupProps {
   data: PopupData | null;
@@ -35,8 +39,13 @@ export function HexPopup({ data, loading, activeVariable, onClose }: HexPopupPro
             const smooth = data[varId as keyof PopupData] as number | null;
             const raw    = data[`${varId}_raw` as keyof PopupData] as number | null;
             const isActive = varId === activeVariable;
+            const isSub = SUB_VARS.has(varId);
             return (
-              <div key={varId} style={{ ...styles.row, ...(isActive ? styles.rowActive : {}) }}>
+              <div key={varId} style={{
+                ...styles.row,
+                ...(isSub ? styles.rowSub : {}),
+                ...(isActive ? styles.rowActive : {}),
+              }}>
                 <div style={styles.varLabel}>{cfg.label}</div>
                 <div style={styles.values}>
                   <span style={styles.tag}>S</span>
@@ -104,6 +113,11 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 2,
+  },
+  rowSub: {
+    paddingLeft: 20,
+    paddingTop: 2,
+    paddingBottom: 2,
   },
   rowActive: {
     background: 'var(--color-primary-10)',

@@ -35,13 +35,20 @@ export default function App() {
   const handleHexHover = useCallback((props: Record<string, unknown>) => {
     const num = (v: unknown) => (v == null || v === '' ? null : Number(v));
     setHoveredHex({
-      hex_id:           String(props.hex_id ?? ''),
-      density:          num(props.density),          density_raw:      num(props.density_raw),
-      diversity:        num(props.diversity),        diversity_raw:    num(props.diversity_raw),
-      design:           num(props.design),           design_raw:       num(props.design_raw),
-      destinations:     num(props.destinations),     destinations_raw: num(props.destinations_raw),
-      demographics:     num(props.demographics),     demographics_raw: num(props.demographics_raw),
-      transit_dist:     num(props.transit_dist),     transit_dist_raw: num(props.transit_dist_raw),
+      hex_id:                    String(props.hex_id ?? ''),
+      density:                   num(props.density),                   density_raw:               num(props.density_raw),
+      diversity:                 num(props.diversity),                 diversity_raw:             num(props.diversity_raw),
+      design:                    num(props.design),                    design_raw:                num(props.design_raw),
+      destinations:              num(props.destinations),              destinations_raw:          num(props.destinations_raw),
+      destinations_center:       num(props.destinations_center),       destinations_center_raw:   num(props.destinations_center_raw),
+      destinations_health:       num(props.destinations_health),       destinations_health_raw:   num(props.destinations_health_raw),
+      destinations_school:       num(props.destinations_school),       destinations_school_raw:   num(props.destinations_school_raw),
+      destinations_grocery:      num(props.destinations_grocery),      destinations_grocery_raw:  num(props.destinations_grocery_raw),
+      destinations_cityhall:     num(props.destinations_cityhall),     destinations_cityhall_raw: num(props.destinations_cityhall_raw),
+      destinations_park:         num(props.destinations_park),         destinations_park_raw:     num(props.destinations_park_raw),
+      destinations_ems:          num(props.destinations_ems),          destinations_ems_raw:      num(props.destinations_ems_raw),
+      demographics:              num(props.demographics),              demographics_raw:          num(props.demographics_raw),
+      transit_dist:              num(props.transit_dist),              transit_dist_raw:          num(props.transit_dist_raw),
     });
   }, []);
 

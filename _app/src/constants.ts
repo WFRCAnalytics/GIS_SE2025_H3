@@ -55,6 +55,69 @@ export const VARIABLE_CONFIGS: Record<DVariable, VariableConfig> = {
     invert: false,
     formatValue: (v) => v.toFixed(3),
   },
+  destinations_center: {
+    label: 'Dest: Centers',
+    fullName: 'Access to Walkable Centers',
+    unit: 'score (0–1)',
+    description: 'Area-weighted coverage by WC center tier (Metropolitan → Employment District)',
+    palette: YlGnBu9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  destinations_health: {
+    label: 'Dest: Health',
+    fullName: 'Access to Health Care',
+    unit: 'score (0–1)',
+    description: 'Proximity to licensed health care facilities',
+    palette: RdPu9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  destinations_school: {
+    label: 'Dest: Schools',
+    fullName: 'Access to High Schools',
+    unit: 'score (0–1)',
+    description: 'Proximity to PreK–12 high schools',
+    palette: PuBuGn9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  destinations_grocery: {
+    label: 'Dest: Grocery',
+    fullName: 'Access to Grocery Stores',
+    unit: 'score (0–1)',
+    description: 'Proximity to grocery stores, specialty grocers, and supermarkets',
+    palette: YlOrRd9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  destinations_cityhall: {
+    label: 'Dest: Civic',
+    fullName: 'Access to Civic Services',
+    unit: 'score (0–1)',
+    description: 'Proximity to city halls and county offices',
+    palette: BuPu9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  destinations_park: {
+    label: 'Dest: Parks',
+    fullName: 'Access to Parks',
+    unit: 'score (0–1)',
+    description: 'Proximity to local and regional parks',
+    palette: RdYlGn9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  destinations_ems: {
+    label: 'Dest: EMS',
+    fullName: 'Access to Emergency Medical Services',
+    unit: 'score (0–1)',
+    description: 'Proximity to EMS stations (ambulance services and equipment depots)',
+    palette: YlOrRd9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
   demographics: {
     label: 'Demographics',
     fullName: 'Socioeconomic Status',
@@ -76,7 +139,11 @@ export const VARIABLE_CONFIGS: Record<DVariable, VariableConfig> = {
 };
 
 export const D_VARIABLES: DVariable[] = [
-  'density', 'diversity', 'design', 'destinations', 'demographics', 'transit_dist',
+  'density', 'diversity', 'design',
+  'destinations',
+  'destinations_center', 'destinations_health', 'destinations_school',
+  'destinations_grocery', 'destinations_cityhall', 'destinations_park', 'destinations_ems',
+  'demographics', 'transit_dist',
 ];
 
 export const CARTO_POSITRON = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';

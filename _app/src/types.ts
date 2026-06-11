@@ -3,6 +3,13 @@ export type DVariable =
   | 'diversity'
   | 'design'
   | 'destinations'
+  | 'destinations_center'
+  | 'destinations_health'
+  | 'destinations_school'
+  | 'destinations_grocery'
+  | 'destinations_cityhall'
+  | 'destinations_park'
+  | 'destinations_ems'
   | 'demographics'
   | 'transit_dist';
 
@@ -24,12 +31,19 @@ export interface AppMetadata {
 
 export interface PopupData {
   hex_id: string;
-  density: number | null;       density_raw: number | null;
-  diversity: number | null;     diversity_raw: number | null;
-  design: number | null;        design_raw: number | null;
-  destinations: number | null;  destinations_raw: number | null;
-  demographics: number | null;  demographics_raw: number | null;
-  transit_dist: number | null;  transit_dist_raw: number | null;
+  density: number | null;                    density_raw: number | null;
+  diversity: number | null;                  diversity_raw: number | null;
+  design: number | null;                     design_raw: number | null;
+  destinations: number | null;               destinations_raw: number | null;
+  destinations_center: number | null;        destinations_center_raw: number | null;
+  destinations_health: number | null;        destinations_health_raw: number | null;
+  destinations_school: number | null;        destinations_school_raw: number | null;
+  destinations_grocery: number | null;       destinations_grocery_raw: number | null;
+  destinations_cityhall: number | null;      destinations_cityhall_raw: number | null;
+  destinations_park: number | null;          destinations_park_raw: number | null;
+  destinations_ems: number | null;           destinations_ems_raw: number | null;
+  demographics: number | null;               demographics_raw: number | null;
+  transit_dist: number | null;               transit_dist_raw: number | null;
 }
 
 export interface ColorStop {

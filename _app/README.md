@@ -1,73 +1,76 @@
-# React + TypeScript + Vite
+# SE 2025 D Variables — Interactive Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vite + React + TypeScript app that visualizes the six D variables (and seven Destinations sub-components) produced by `index.R` for the WFRC/MAG region.
 
-Currently, two official plugins are available:
+## Tech stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Layer | Tool |
+|---|---|
+| Build | Vite 6 |
+| UI | React 19 + TypeScript |
+| Map | MapLibre GL JS |
+| Tile format | PMTiles (served from `public/`) |
+| Data | `metadata.json` (pre-computed breaks, also in `public/`) |
+| Deploy | GitHub Actions → GitHub Pages |
 
-## React Compiler
+## Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The dev server runs at `http://localhost:5173`. PMTiles are loaded from `public/l9.pmtiles` and `public/l8.pmtiles` — regenerate these by re-running `index.R` in the parent project.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build   # production build → dist/
+npm run preview # preview the production build locally
 ```
+
+## Key source files
+
+| File | Purpose |
+|---|---|
+| `src/types.ts` | `DVariable` union type, `PopupData` interface |
+| `src/constants.ts` | `VARIABLE_CONFIGS` (label, palette, formatter), `D_VARIABLES` order |
+| `src/hooks/useData.ts` | Loads `metadata.json`, selects Fisher break values, builds MapLibre color expression |
+| `src/App.tsx` | Root state: active variable, zoom, hovered hex, level mode |
+| `src/components/map/SwipeMap.tsx` | MapLibre swipe comparison (smoothed left / raw right) |
+| `src/components/map/HexInfoBox.tsx` | Hover panel showing all variable values for the focused hex |
+| `src/components/ui/VariableSelector.tsx` | Sidebar list of variables; sub-vars indented |
+| `src/components/layout/Header.tsx` | Title bar with active variable label and documentation link |
+
+## Variables
+
+The app exposes 13 selectable variables — the 6 core D variables plus 7 Destinations sub-components. Sub-components are visually indented in the variable selector and in the hex info popup.
+
+| Variable ID | Label | Notes |
+|---|---|---|
+| `density` | Density | |
+| `diversity` | Diversity | |
+| `design` | Design | |
+| `destinations` | Destinations | Composite (WC centers 60% + amenities 40%) |
+| `destinations_center` | Dest: Centers | WC center area-overlap score |
+| `destinations_health` | Dest: Health | Healthcare facilities |
+| `destinations_school` | Dest: Schools | High schools |
+| `destinations_grocery` | Dest: Grocery | Grocery stores & supermarkets |
+| `destinations_cityhall` | Dest: Civic | City halls & county offices |
+| `destinations_park` | Dest: Parks | Local and regional parks |
+| `destinations_ems` | Dest: EMS | Emergency Medical Services stations |
+| `demographics` | Demographics | Median household income |
+| `transit_dist` | Distance to Transit | Miles to nearest frequent stop |
+
+Each variable is available at H3 level 8 (zoomed out) and level 9 (zoomed in). Level switches automatically at zoom 11 or can be locked in the sidebar. Each variable also has a smoothed and a raw map panel (MapLibre swipe control).
+
+## Adding a new variable
+
+1. Add the variable ID to the `DVariable` union in `src/types.ts`
+2. Add smoothed and raw fields to the `PopupData` interface in `src/types.ts`
+3. Add a `VariableConfig` entry to `VARIABLE_CONFIGS` in `src/constants.ts`
+4. Add the variable ID to the `D_VARIABLES` array in `src/constants.ts`
+5. Extract the new fields in the `handleHexHover` callback in `src/App.tsx`
+6. Rerun `index.R` (which updates PMTiles and `metadata.json`)
+
+## Deployment
+
+GitHub Actions (`.github/workflows/deploy.yml`) builds the app and deploys `dist/` to GitHub Pages on every push to `main`. PMTiles and `metadata.json` are committed to `public/` and served as static assets.

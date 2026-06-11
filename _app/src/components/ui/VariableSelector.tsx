@@ -6,6 +6,11 @@ interface VariableSelectorProps {
   onChange: (v: DVariable) => void;
 }
 
+const SUB_VARS = new Set<DVariable>([
+  'destinations_center', 'destinations_health', 'destinations_school',
+  'destinations_grocery', 'destinations_cityhall', 'destinations_park', 'destinations_ems',
+]);
+
 export function VariableSelector({ value, onChange }: VariableSelectorProps) {
   return (
     <div style={styles.wrap}>
@@ -14,12 +19,14 @@ export function VariableSelector({ value, onChange }: VariableSelectorProps) {
         {D_VARIABLES.map(varId => {
           const cfg = VARIABLE_CONFIGS[varId];
           const active = value === varId;
+          const isSub = SUB_VARS.has(varId);
           return (
             <button
               key={varId}
               onClick={() => onChange(varId)}
               style={{
                 ...styles.btn,
+                ...(isSub ? styles.btnSub : {}),
                 ...(active ? styles.btnActive : {}),
               }}
               aria-pressed={active}
@@ -70,6 +77,10 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'background 0.12s, color 0.12s',
     textAlign: 'left',
     cursor: 'pointer',
+  },
+  btnSub: {
+    paddingLeft: 22,
+    fontSize: 12,
   },
   btnActive: {
     background: 'var(--color-primary-10)',

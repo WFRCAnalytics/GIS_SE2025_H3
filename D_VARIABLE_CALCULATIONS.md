@@ -1,12 +1,6 @@
-# Claude Code Instructions: Urban Form D Variables
+# Urban Form D Variables — Methodology & Pipeline Reference
 
-Refactor `index.R` to calculate 6 urban form D variables (Density, Diversity, Design, Destinations, Demographics, Distance to Transit) for H3 level-9 hexagons, with neighbor-weighted smoothing embedded into each variable's input calculation.
-
----
-
-## Context
-
-The project works with WFRC SE 2025 data in H3 level-9 hexagons stored in `_data/wfrc_se_2025_rtp23.gdb.zip`. The current `index.R` smooths raw SE data; this needs to be replaced entirely with D variable calculations where smoothing is embedded into each variable's inputs.
+Documents the calculation methodology for all D variables produced by `index.R`. Kept in sync with the script; if the script and this document disagree, the script is authoritative.
 
 ---
 
@@ -20,17 +14,16 @@ The project works with WFRC SE 2025 data in H3 level-9 hexagons stored in `_data
 5. SE data import
 6. Neighbor index build
 7. D variable calculations (one section per variable)
-8. Assemble output
-9. Export
+8. L9 output assembly
+9. L8 aggregation & calculations
+10. PMTiles + metadata export
 ```
 
-Use `# ── Section Name ───────────────────────────────────────────────────────` header comments before each major section.
+Section headers in the script use `# ── Section Name ──────────────────────────────────────` style comments.
 
 ---
 
 ## Parameters
-
-Place at the very top of the script:
 
 ```r
 GDB_NAME      <- "wfrc_se_2025_rtp23"
@@ -49,44 +42,62 @@ stopifnot(isTRUE(all.equal(CENTER_WEIGHT + RING1_WEIGHT + RING2_WEIGHT + RING3_W
 
 ## Helper Functions
 
-### `fetch_or_cache(url, cache_path, layer = NULL)`
+### `fetch_or_cache(url, cache_path, layer = NULL, where = NULL)`
 
-- If `cache_path` exists, read and return it via `sf::read_sf()`
-- Otherwise fetch via `arcgislayers::arc_select(arcgislayers::arc_open(url))`, write to `cache_path` as `.gpkg`, return the data
-- `url` must be the bare FeatureServer layer URL (no `/query?...` suffix) — `arcgislayers` handles pagination and attribute fetching automatically
-- Create parent directories with `dir.create(..., recursive = TRUE, showWarnings = FALSE)` if needed
-- Wrap fetch in `tryCatch` with an informative error message
+Downloads a FeatureServer layer once and caches it as a full, unfiltered `.gpkg`. On subsequent runs, reads from cache. An optional `where` SQL clause is applied at read time via GDAL push-down — the cached file is never filtered, so the `where` argument can be changed without re-downloading.
+
+```r
+fetch_or_cache <- function(url, cache_path, layer = NULL, where = NULL) {
+  full_path <- file.path(root, cache_path)
+  if (!file.exists(full_path)) {
+    dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
+    data <- tryCatch(
+      arcgislayers::arc_select(arcgislayers::arc_open(url)),
+      error = function(e) stop("Failed to fetch '", cache_path, "': ", conditionMessage(e))
+    )
+    if (is.na(sf::st_crs(data))) sf::st_crs(data) <- 4326L
+    sf::write_sf(data, full_path, driver = "GPKG")
+  }
+  if (is.null(where)) {
+    if (is.null(layer)) sf::read_sf(full_path) else sf::read_sf(full_path, layer = layer)
+  } else {
+    lyr <- if (is.null(layer)) sf::st_layers(full_path)$name[[1L]] else layer
+    sf::read_sf(full_path, query = sprintf('SELECT * FROM "%s" WHERE %s', lyr, where))
+  }
+}
+```
+
+**Key design decisions:**
+- `url` is the bare FeatureServer layer URL — `arcgislayers` handles pagination automatically.
+- The cache always stores the complete dataset. Filters are pushed to the SQL query at read time, not baked into the cache, so they are cheap to change.
+- Passing `layer = NULL` explicitly would crash `sf::read_sf` (triggers `enc2utf8(layer)`) — always branch on `is.null(layer)`.
 
 ### `build_neighbor_index(hex_ids, k = 3)`
 
-- Takes a character vector of hex IDs
-- Uses `h3o::h3_from_strings()`, `h3o::grid_disk()`, `h3o::grid_distances()` with `k = 3`
-- Returns a data frame with columns: `center_id`, `member_id`, `ring`, `weight`
-- Weights:
-  - ring 0 → `CENTER_WEIGHT`
-  - ring 1 → `RING1_WEIGHT / n_ring1_neighbors`
-  - ring 2 → `RING2_WEIGHT / n_ring2_neighbors`
-  - ring 3 → `RING3_WEIGHT / n_ring3_neighbors`
-- Per-ring neighbor counts must be computed per center cell (edge cells have fewer neighbors than interior cells)
-- Drop any `member_id` values not present in `hex_ids`
+Returns a data frame with columns `center_id`, `member_id`, `ring`, `weight` for the k-ring neighborhood of every hex in `hex_ids`.
+
+- Uses `h3o::grid_disk()` + `h3o::grid_distances()` with `k = 3`
+- Weights: ring 0 → `CENTER_WEIGHT`; ring *n* → `RING_n_WEIGHT / count_of_ring_n_neighbors_for_that_center`
+- Per-ring neighbor counts are computed per center cell — edge cells have fewer neighbors
+- Members not present in `hex_ids` are dropped (study-area boundary)
 
 ### `smooth_by_neighbors(hex_ids, values, neighbor_index)`
 
-- Takes a character vector `hex_ids`, numeric vector `values` (same length), and the neighbor index data frame
-- Returns a numeric vector of smoothed values in the same order as input `hex_ids`
-- Implementation: join values onto neighbor index by `member_id`, multiply by `weight`, aggregate with `rowsum()` grouped by `center_id`, reorder result to match input `hex_ids`
+Returns a numeric vector of smoothed values in the same order as `hex_ids`.
+
+Implementation: join `values` onto `neighbor_index` by `member_id`, multiply by `weight`, aggregate with `rowsum()` grouped by `center_id`, reorder to match `hex_ids`.
 
 ---
 
 ## Remote Data Fetch & Cache
 
-Fetch and cache all remote sources before any calculations. All cache paths are relative to `here::here()`.
+All source-level filters use SQL `WHERE` clauses in `fetch_or_cache(..., where = ...)`. The cached `.gpkg` files are always full and unfiltered.
 
 ### Design
 
 ```r
 intersection_hex <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/Street_Intersection_Density_2025/FeatureServer/3/query?where=1%3D1&outFields=*&f=geojson",
+  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/Street_Intersection_Density_2025/FeatureServer/3",
   cache_path = "_data/remote/design/intersection_hex.gpkg"
 )
 ```
@@ -95,65 +106,76 @@ intersection_hex <- fetch_or_cache(
 
 ```r
 center_boundaries <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/WCV_Centers_and_Regional_Land_Uses/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson",
+  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/WCV_Centers_and_Regional_Land_Uses/FeatureServer/0",
   cache_path = "_data/remote/destinations/center_boundaries.gpkg"
 )
+
+# Exclude residential/home-based care types not relevant to urban accessibility
 health_care <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson",
-  cache_path = "_data/remote/destinations/health_care.gpkg"
+  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0",
+  cache_path = "_data/remote/destinations/health_care.gpkg",
+  where      = "LICENSE_TYPE NOT IN ('Assisted Living Facility - Type I', 'Assisted Living Facility - Type II',
+                 'Personal Care Agency', 'Home Health Agency', 'Hospice', 'Birthing Center', 'Abortion Clinic')"
 )
+
 schools <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson",
-  cache_path = "_data/remote/destinations/schools.gpkg"
+  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0",
+  cache_path = "_data/remote/destinations/schools.gpkg",
+  where      = "SchoolLevel LIKE '%high%'"
 )
+
 grocery_stores <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/UtahGroceryAndFoodStores_DAF/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson",
-  cache_path = "_data/remote/destinations/grocery_stores.gpkg"
+  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/UtahGroceryAndFoodStores_DAF/FeatureServer/0",
+  cache_path = "_data/remote/destinations/grocery_stores.gpkg",
+  where      = "TYPE IN ('Grocery Store', 'Specialty Grocery', 'Supermarket')"
 )
+
 city_halls <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/CommunityServices_gdb/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson",
-  cache_path = "_data/remote/destinations/city_halls.gpkg"
+  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/CommunityServices_gdb/FeatureServer/0",
+  cache_path = "_data/remote/destinations/city_halls.gpkg",
+  where      = "Facility LIKE '%City Hall%' OR Facility LIKE '%County Office%'"
 )
+
 parks_local <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahParksLocal/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson",
+  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahParksLocal/FeatureServer/0",
   cache_path = "_data/remote/destinations/parks_local.gpkg"
 )
+
 parks_wfrc <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/AccessToParks_082024_gdb/FeatureServer/2/query?where=1%3D1&outFields=*&f=geojson",
+  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/AccessToParks_082024_gdb/FeatureServer/2",
   cache_path = "_data/remote/destinations/parks_wfrc.gpkg"
+)
+
+# Exclude prison and military-base stations (not civilian destinations)
+ems_stations <- fetch_or_cache(
+  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/EmergencyMedicalServices/FeatureServer/0",
+  cache_path = "_data/remote/destinations/ems_stations.gpkg",
+  where      = "NAME NOT LIKE '%PRISON%' AND NAME NOT LIKE '%-DOD'"
 )
 ```
 
+**Healthcare filter rationale:** An exclude-list is used instead of an allow-list because the source data contains many valid facility subtypes (e.g. "Mammography") that are co-located with full-service clinics. Excluding only the clearly non-destination types (residential care, home-based services) reduces false negatives from miscategorization in the source data.
+
 ### Demographics
 
-Use `tidycensus` directly — do not use `fetch_or_cache` for these:
-
 ```r
-# 1. ACS 5-year median HH income at block group level (tidy format):
-#    variable = "B19013_001", geography = "block group", state = "UT",
-#    geometry = TRUE, most recent available year
-#    Cache to _data/remote/demographics/bg_income.gpkg
-
-# 2. 2020 Census block-level occupied housing units as interpolation weights:
-#    variable = "H1_002N", geography = "block", state = "UT",
-#    year = 2020, geometry = TRUE (PL 94-171 default sumfile — H1_002N lives there)
-#    Cache to _data/remote/demographics/blocks_2020_hh.gpkg
+# ACS 5-year median HH income at block group level — cached to bg_income.gpkg
+# 2020 Census block-level occupied housing units — cached to blocks_2020_hh.gpkg
+# Both fetched via tidycensus directly (not fetch_or_cache)
 ```
 
 ### Transit
 
 ```r
-# Download https://gtfsfeed.rideuta.com/GTFS.zip to
-# _data/remote/transit/GTFS.zip if not already cached
-# Unzip to _data/remote/transit/gtfs/
-# Use download.file() + unzip(), wrapped in a file.exists() check
+# UTA GTFS downloaded to _data/remote/transit/GTFS.zip, unzipped to gtfs/
+# Wrapped in file.exists() check — re-runs skip download
 ```
 
-### County Boundaries (for Density NA flagging)
+### County Boundaries
 
 ```r
 utah_counties <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/UtahCountyBoundaries/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson",
+  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/UtahCountyBoundaries/FeatureServer/0",
   cache_path = "_data/remote/boundaries/utah_counties.gpkg"
 )
 ```
@@ -162,174 +184,137 @@ utah_counties <- fetch_or_cache(
 
 ## D Variable Calculations
 
-> **Before any spatial join:** always call `sf::st_transform()` to align CRS. Never assume CRS matches. Always inspect field names with `names()` before joining — do not assume field names match what is documented here.
+> Before any spatial join: `sf::st_transform()` to align CRS. Inspect `names()` before joining — never assume field names.
 
 ### 1. Density
 
-```r
-# Smooth residential_units and total_jobs via smooth_by_neighbors(), then combine:
-# density <- (smoothed_residential_units + smoothed_total_jobs / J2H) / HEX_AREA_SQMI
-#
-# Identify hexes in Tooele Valley, Morgan, Summit, and Wasatch counties
-# via spatial join against utah_counties. Set their density values to NA.
-# TODO: pending TBD methodology for these areas per supervisor guidance.
 ```
+density = (smoothed_residential_units + smoothed_total_jobs / J2H) / HEX_AREA_SQMI
+```
+
+Hexes in Tooele, Morgan, Summit, and Wasatch counties are set to `NA` — pending methodology guidance for those areas.
 
 ### 2. Diversity
 
-```r
-# Smooth households and total_jobs independently, then apply formula:
-# hh_s  <- smooth_by_neighbors(hex_ids, households, neighbor_index)
-# emp_s <- smooth_by_neighbors(hex_ids, total_jobs, neighbor_index)
-# hw    <- hh_s * J2H
-# diversity <- ifelse(hw == 0 | emp_s == 0, NA, pmin(hw, emp_s) / pmax(hw, emp_s))
 ```
+hh_s      = smooth_by_neighbors(households)
+emp_s     = smooth_by_neighbors(total_jobs)
+hw        = hh_s × J2H
+diversity = ifelse(hw == 0 | emp_s == 0, NA, pmin(hw, emp_s) / pmax(hw, emp_s))
+```
+
+Pure residential (emp = 0) → 0. Pure employment (hh = 0) → 0. Genuinely empty (both 0) → `NA`.
 
 ### 3. Design
 
-```r
-# The intersection_hex layer has a hex_id field of unknown type/format.
-# Before joining:
-#   1. Inspect class and sample values of intersection_hex$hex_id
-#   2. Inspect class and sample values of se_hex$hex_id
-#   3. Determine join strategy:
-#      - If both are H3 strings of same format → direct join on hex_id
-#      - If types differ (e.g. integer vs string) → attempt coercion and verify
-#      - If IDs do not correspond → fall back to spatial join
-#   4. Document the finding in a comment above the join
-#
-# After joining IntScore to se_hex:
-# design <- smooth_by_neighbors(hex_ids, IntScore, neighbor_index)
-# Hexes with no match from the join → NA
-```
+IntScore from the WFRC Street Intersection Density 2025 layer (FeatureServer/3, which already has hex-level aggregates) is joined to `se_hex` by `hex_id` and neighbor-smoothed. Hexes with no match → `NA`.
 
 ### 4. Destinations
 
-```r
-# Step 1: WC Center score
-# - Intersect se_hex with center_boundaries (align CRS first)
-# - Assign center tier weights:
-#     Metropolitan Center = 1.0
-#     Urban Center        = 0.8
-#     City Center         = 0.6
-#     Neighborhood Center = 0.4
-#     Employment District = 0.2
-#     Retail District     = 0.2
-#     Education District  = 0.2
-#     Special District    = 0.0  (excluded)
-#     Industrial District = 0.0  (excluded)
-# - wc_score = sum(intersection_area / hex_area * tier_weight) per hex
-# - Cap wc_score at 1.0
+**Step 1 — WC Center score (wc_score):**
 
-# Step 2: Amenity presence score
-# For each amenity layer, create a binary flag per hex (1 if >=1 feature present)
-# Apply filters before spatial join:
-#   schools:       inspect field names, keep only high schools
-#   grocery_stores: filter TYPE %in% c("Grocery Store","Specialty Grocery","Supermarket")
-#   city_halls:    filter Facility field containing "City Hall" or "County Office"
-#
-# amenity_score = mean(c(healthcare, high_school, grocery, city_hall, park))
-# Each component is 0 or 1, so amenity_score ranges 0–1
-
-# Step 3: Combine and smooth
-# raw_destinations = 0.6 * wc_score + 0.4 * amenity_score
-# destinations <- smooth_by_neighbors(hex_ids, raw_destinations, neighbor_index)
 ```
+wc_score = sum(intersection_area / hex_area × tier_weight) per hex, capped at 1.0
+```
+
+| Center type | Weight |
+|---|---|
+| Metropolitan Center | 1.0 |
+| Urban Center | 0.8 |
+| City Center | 0.6 |
+| Neighborhood Center | 0.4 |
+| Employment District | 0.2 |
+| Retail District | 0.2 |
+| Education District | 0.2 |
+| Special District | 0.0 |
+| Industrial District | 0.0 |
+
+**Step 2 — Amenity presence flags:**
+
+Each flag is 1 if ≥1 qualifying feature intersects the hex centroid or polygon, 0 otherwise.
+
+| Flag | Source | Filter applied at read |
+|---|---|---|
+| `healthcare_flag` | LicensedHealthCareFacilities | Exclude-list (see above) |
+| `highschool_flag` | Schools_PreKto12 | `SchoolLevel LIKE '%high%'` |
+| `grocery_flag` | UtahGroceryAndFoodStores_DAF | `TYPE IN (...)` |
+| `cityhall_flag` | CommunityServices_gdb | `Facility LIKE '%City Hall%' OR ...` |
+| `park_flag` | UtahParksLocal ∪ AccessToParks | none |
+| `ems_flag` | EmergencyMedicalServices | Exclude prison/DOD |
+
+**Step 3 — Composite:**
+
+```
+amenity_score    = (healthcare_flag + highschool_flag + grocery_flag +
+                    cityhall_flag + park_flag + ems_flag) / 6
+raw_destinations = 0.6 × wc_score + 0.4 × amenity_score
+destinations     = smooth_by_neighbors(raw_destinations)
+```
+
+**Sub-components:** each flag/score is also smoothed independently and stored as its own column pair (`destinations_<type>_smoothed` / `_raw`) for per-amenity drill-down.
 
 ### 5. Demographics
 
-```r
-# Use tidycensus::interpolate_pw() to perform population-weighted interpolation
-# from BG geographies to H3 hexes:
-#   from             = bg_income (ACS BG polygons with estimate column)
-#   to               = se_hex
-#   to_id            = "hex_id"
-#   extensive        = FALSE  (income is intensive — an average, not a count)
-#   weights          = blocks_hh (2020 Census blocks with H1_002N occupied HH)
-#   weight_column    = "value"
-#   weight_placement = "surface"
-#
-# Only populate for hexes where households > 0 (from SE data); others → NA.
-# H3 household count acts as a populated-area mask.
-#
-# demographics <- smooth_by_neighbors(hex_ids, demographics_raw, neighbor_index)
-#
-# NOTE: interpolate_pw() on median incomes is statistically imperfect
-# (averaging medians). Flagged by supervisor for future revision.
-```
+ACS 5-year median household income (B19013_001, 2023) interpolated from block-group polygons to H3 hexes via `tidycensus::interpolate_pw()` using SE 2025 household counts as areal weights. Only hexes with `households > 0` receive a value. Result is neighbor-smoothed.
+
+> Interpolating median incomes via weighted averaging is statistically imperfect (averaging medians). Flagged for future revision.
 
 ### 6. Distance to Transit
 
-```r
-# 1. Read from cached GTFS: stop_times.txt, trips.txt, routes.txt, calendar.txt, stops.txt
-# 2. Identify weekday service IDs from calendar (monday == 1)
-# 3. Filter trips to weekday service IDs
-# 4. Join trips → stop_times, then join routes to get route_type per stop arrival
-# 5. For each stop_id, compute median headway on a typical weekday:
-#    - Sort arrivals by stop_id and arrival_time
-#    - diff() consecutive arrivals within each stop_id group
-#    - Convert to minutes, take median
-# 6. Classify frequent stops as: median_headway <= 15 OR route_type == 2 (CRT)
-# 7. Read stops.txt, filter to frequent stop_ids
-#    Create sf point layer: st_as_sf(coords = c("stop_lon","stop_lat"), crs = 4326)
-#    Transform to se_hex CRS
-# 8. Compute hex centroid → nearest frequent stop distance:
-#    centroids <- sf::st_centroid(se_hex)
-#    dist_matrix <- sf::st_distance(centroids, frequent_stops)
-#    transit_dist_raw <- as.numeric(dist_matrix[cbind(seq_len(nrow(se_hex)), apply(dist_matrix, 1, which.min))]) / 1609.34
-# 9. transit_dist <- smooth_by_neighbors(hex_ids, transit_dist_raw, neighbor_index)
+Nearest-neighbor distance (miles) from each hex centroid to a frequent UTA transit stop, neighbor-smoothed. Frequent = weekday median headway ≤ 15 minutes, or GTFS `route_type` 1 or 2 (heavy/commuter rail).
+
+---
+
+## Classification Breaks
+
+Color classification for the web app uses **Fisher** (Fisher-Jenks natural breaks) via `classInt::classIntervals(..., style = "fisher")`. Jenks (`O(n²)`) was too slow on 66 k pooled L8+L9 values — Fisher produces equivalent breaks in a fraction of the time.
+
+Breaks are computed pooled across both L8 and L9 values for each variable, stored in `_app/public/metadata.json`, and consumed by the app's `useData` hook. The number of break classes adapts to the number of unique quantile values in the variable (some variables in sparse areas have fewer than 9 distinct breaks).
+
+Variables included in `metadata.json`:
+```
+density, diversity, design,
+destinations, destinations_center, destinations_health, destinations_school,
+destinations_grocery, destinations_cityhall, destinations_park, destinations_ems,
+demographics, transit_dist
 ```
 
 ---
 
 ## Output Assembly
 
-Attach all D variables to `se_hex` as new columns. Do not modify any original SE columns:
+Two GDB layers are produced — `{GDB_NAME}_l9` (H3 level-9, ~66 k hexes) and `{GDB_NAME}_l8` (H3 level-8, ~9.5 k hexes).
 
-```r
-se_hex$density      <- density
-se_hex$diversity    <- diversity
-se_hex$design       <- design
-se_hex$destinations <- destinations
-se_hex$demographics <- demographics
-se_hex$transit_dist <- transit_dist
-```
+Each layer contains all original SE columns plus:
+
+| Column pattern | Description |
+|---|---|
+| `density_smoothed` / `_raw` | Persons + jobs per sq mi |
+| `diversity_smoothed` / `_raw` | HH–job balance ratio 0–1 |
+| `design_smoothed` / `_raw` | Street intersection score |
+| `destinations_smoothed` / `_raw` | Composite destination score 0–1 |
+| `destinations_center_smoothed` / `_raw` | WC center area-overlap score 0–1 |
+| `destinations_health_smoothed` / `_raw` | Healthcare flag (smoothed / raw) |
+| `destinations_school_smoothed` / `_raw` | High school flag |
+| `destinations_grocery_smoothed` / `_raw` | Grocery flag |
+| `destinations_cityhall_smoothed` / `_raw` | City hall / county office flag |
+| `destinations_park_smoothed` / `_raw` | Park flag |
+| `destinations_ems_smoothed` / `_raw` | EMS station flag |
+| `demographics_smoothed` / `_raw` | Median HH income, $ |
+| `transit_dist_smoothed` / `_raw` | Distance to frequent stop, miles |
 
 ---
 
-## Visualization
+## PMTiles & Metadata Export
 
-Keep the existing `mapgl` comparison map block but update it to compare `diversity` from `se_hex` (raw smoothed inputs) vs a version with `CENTER_WEIGHT = 1` (no neighbor influence) as a sanity check. If this is too complex, simply display `diversity` on a single `maplibre_view()` map.
-
----
-
-## Export
-
-```r
-# _output/{GDB_NAME}.gdb.zip contains a single layer: GDB_NAME
-# (se_hex with all original SE columns + 7 D variable columns appended)
-# Remove the old "_smoothed" layer — it is no longer needed
-
-if (!dir.exists(file.path(root, "_output"))) dir.create(file.path(root, "_output"))
-
-gdb_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb"))
-zip_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
-
-se_hex |>
-  sf::write_sf(gdb_path, layer = GDB_NAME, driver = "OpenFileGDB", append = FALSE)
-
-zip(zip_path, files = gdb_path, flags = "-r9X")
-unlink(gdb_path, recursive = TRUE)
-```
+PMTiles are generated via the `freestiler` R package directly from the sf objects. The `metadata.json` file is written at the end of `index.R` with pre-computed Fisher break values for all 13 variables at both L8 and L9. Re-running `index.R` regenerates both PMTiles and metadata atomically.
 
 ---
 
 ## General Rules
 
-- Use `sf::st_transform()` to align CRS before **every** spatial operation
-- Inspect field names with `names()` before every join — never assume field names
-- For any FeatureServer that may exceed 2000 records, paginate via `resultOffset` / `resultRecordCount`
-- Wrap all remote fetches in `tryCatch` with informative messages
-- Add inline comments explaining non-obvious methodology decisions
-- Do not use `library()` calls inside functions — keep all library calls at the top of the script
-- Run `renv::snapshot()` after adding any new packages
+- `sf::st_transform()` before every spatial operation
+- `names()` inspection before every join — never assume field names
+- All remote fetches wrapped in `tryCatch` with informative messages
+- No `library()` calls inside functions
+- Run `renv::snapshot()` after adding packages
