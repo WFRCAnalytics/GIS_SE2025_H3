@@ -42,7 +42,7 @@ npm run preview # preview the production build locally
 
 ## Variables
 
-The app exposes 13 selectable variables — the 6 core D variables plus 7 Destinations sub-components. Sub-components are visually indented in the variable selector and in the hex info popup.
+The app exposes 14 selectable variables — the 6 core D variables, the Income Diversity Index, and 7 Destinations sub-components. Sub-components are visually indented in the variable selector and in the hex info popup.
 
 | Variable ID | Label | Notes |
 |---|---|---|
@@ -58,6 +58,7 @@ The app exposes 13 selectable variables — the 6 core D variables plus 7 Destin
 | `destinations_park` | Dest: Parks | Local and regional parks |
 | `destinations_ems` | Dest: EMS | Emergency Medical Services stations |
 | `demographics` | Demographics | Median household income |
+| `income_diversity` | Income Diversity | Shannon entropy of income brackets (ACS B19001); 0 = all households in one bracket, 1 = perfectly even mix |
 | `transit_dist` | Distance to Transit | Miles to nearest frequent stop |
 
 Each variable is available at H3 level 8 (zoomed out) and level 9 (zoomed in). Level switches automatically at zoom 11 or can be locked in the sidebar. Each variable also has a smoothed and a raw map panel (MapLibre swipe control).

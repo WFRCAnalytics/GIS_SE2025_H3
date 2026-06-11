@@ -1,6 +1,6 @@
 # SE 2025 Urban Form D Variables (H3)
 
-Calculates six **D variables** — a standard framework for measuring urban form and its relationship to travel behavior — for the WFRC/MAG region at H3 level-9 hexagon resolution using WFRC SE 2025 socioeconomic data. Each variable is available at two H3 resolutions (level 8 and level 9) and as both a smoothed and a raw value. The Destinations variable additionally exposes seven sub-component columns (one per amenity type) for drill-down analysis.
+Calculates six **D variables** — a standard framework for measuring urban form and its relationship to travel behavior — for the WFRC/MAG region at H3 level-9 hexagon resolution using WFRC SE 2025 socioeconomic data. Each variable is available at two H3 resolutions (level 8 and level 9) and as both a smoothed and a raw value. The Destinations variable additionally exposes seven sub-component columns (one per amenity type). The Demographics dimension includes two measures: median household income and the Income Diversity Index.
 
 ## Variables
 
@@ -11,6 +11,7 @@ Calculates six **D variables** — a standard framework for measuring urban form
 | 3 | **Design** | Street Network Design | How well-connected the street grid is; more intersections = more route choices |
 | 4 | **Destinations** | Destination Accessibility | Proximity to activity centers and everyday amenities (composite + 7 sub-components) |
 | 5 | **Demographics** | Socioeconomic Status | Median household income as an equity lens |
+| 5b | **Income Diversity** | Income Diversity Index | Income concentration across households (derived from Gini; 0 = perfect equality, 1 = maximum concentration) |
 | 6 | **Distance to Transit** | Transit Access | Distance to the nearest frequent-service transit stop |
 
 The D-variable framework originates from Cervero & Kockelman (1997) and has been refined by Ewing & Cervero (2010). These six dimensions collectively describe the built environment features most strongly associated with mode choice and vehicle miles traveled.
@@ -86,7 +87,7 @@ Scores are summed to the L8 hex, distributed equally among each hex's 7 L9 child
   - [WC Centers and Regional Land Uses](https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/WCV_Centers_and_Regional_Land_Uses/FeatureServer/0) — WFRC ArcGIS REST
 
 - **Amenity presence score (40%)** — mean of six binary flags (1 if ≥1 qualifying feature intersects the hex, 0 otherwise):
-  - Healthcare: [Licensed Health Care Facilities](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0) — AGRC. Residential-care and home-based service types excluded (Assisted Living Facility Type I & II, Personal Care Agency, Home Health Agency, Hospice, Birthing Center, Abortion Clinic).
+  - Healthcare: [Licensed Health Care Facilities](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0) — AGRC. Excluded types (clearly non-destination): Assisted Living Facility Type I & II, Home Health Agency, Hospice, Birthing Center, Abortion Clinic. All other license types — including clinics, hospitals, urgent care, mammography, personal care agencies, and specialty providers — are included.
   - High school: [Schools Pre-K to 12](https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0) — AGRC (filtered to `SchoolLevel LIKE '%high%'`)
   - Grocery store: [Utah Grocery and Food Stores](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/UtahGroceryAndFoodStores_DAF/FeatureServer/0) — WFRC (`TYPE IN ('Grocery Store', 'Specialty Grocery', 'Supermarket')`)
   - City hall / county office: [Community Services](https://services1.arcgis.com/taguadKoI1XFwivx/arcgis/rest/services/CommunityServices_gdb/FeatureServer/0) — WFRC (`Facility LIKE '%City Hall%' OR Facility LIKE '%County Office%'`)
@@ -109,9 +110,76 @@ All source-level filters are applied as SQL `WHERE` clauses at read time via the
 
 **What it captures:** Median household income as an equity lens. Lower-income households tend to depend more heavily on transit and active transportation, so this variable helps identify where built environment improvements would have the greatest equity benefit. It also contextualizes how the other D variables should be interpreted for a given community.
 
-ACS 5-year median household income (B19013_001, 2023) is interpolated from block-group polygons to H3 hexes using `tidycensus::interpolate_pw()`, with SE 2025 estimated household counts (from the same pipeline) as the areal weight. Using SE households keeps the interpolation internally consistent — a hex with more estimated households pulls more of an overlapping block group's income signal. Only populated hexes (`households > 0`) receive a value. Result is neighbor-smoothed.
+**ACS variable:** `B19013_001` — Median Household Income in the Past 12 Months (in inflation-adjusted dollars), 2019–2023 ACS 5-year estimates, block-group geography.
+
+ACS 5-year median household income is interpolated from block-group polygons to H3 hexes using `tidycensus::interpolate_pw()`, with SE 2025 estimated household counts (from the same pipeline) as the areal weight. Using SE households keeps the interpolation internally consistent — a hex with more estimated households pulls more of an overlapping block group's income signal. Only populated hexes (`households > 0`) receive a value. Result is neighbor-smoothed.
 
 > **Note:** Interpolating median incomes via weighted averaging is a known statistical approximation (averaging medians is not strictly correct). Flagged for future revision.
+
+---
+
+### 5b. Income Diversity Index
+
+**What it captures:** Whether households from many different income levels coexist within a neighborhood. A high score means income is spread across many brackets — the kind of place where people at very different income levels can all find housing. A low score means the neighborhood is dominated by a single income tier, whether uniformly wealthy or uniformly low-income.
+
+This framing deliberately avoids the problem of treating high median income as "bad." A high-income neighborhood where everyone earns similarly scores *low* on this index — not because incomes are high, but because there is no income mix. The path to a better score is creating places with housing accessible to a range of incomes, not reducing anyone's income.
+
+Reported as part of the Demographics dimension. The column is named `income_diversity` throughout.
+
+#### Method: Shannon entropy
+
+The index uses the **Shannon entropy** formula, drawn from information theory and widely used in ecology and urban studies to measure diversity. Applied here, it measures how evenly households are distributed across the 11 ACS income brackets:
+
+```
+H  = −Σᵢ pᵢ × ln(pᵢ)          (sum over non-empty brackets only)
+income_diversity = H / ln(11)   (normalized to 0–1)
+```
+
+where *pᵢ* = share of households in bracket *i*, and ln(11) is the maximum possible entropy when all 11 brackets have equal shares.
+
+| Score | Meaning |
+|---|---|
+| **0** | All households in a single income bracket — no mix |
+| **0.5** | Moderate mix; a few brackets dominate |
+| **1.0** | Perfectly even spread across all 11 brackets |
+
+**Higher is better.** Unlike the Gini coefficient, entropy is agnostic to dollar amounts — it does not matter whether the dominant bracket is high-income or low-income; a homogeneous neighborhood scores low regardless. Improvement requires increasing the representation of *under-represented* income levels, not reducing the income of over-represented ones.
+
+#### ACS data source
+
+**Table:** `B19001` — Household Income in the Past 12 Months (in inflation-adjusted dollars)
+**Geography:** Block group, state of Utah (9-county WFRC/MAG study area)
+**Vintage:** 2019–2023 ACS 5-year estimates
+**Cache:** `_data/remote/demographics/bg_income_dist.gpkg`
+
+The table provides **household counts** (not percentages) for 11 income brackets:
+
+| ACS variable | Income bracket |
+|---|---|
+| `B19001_002` | Less than $10,000 |
+| `B19001_003` | $10,000 to $14,999 |
+| `B19001_004` | $15,000 to $24,999 |
+| `B19001_005` | $25,000 to $34,999 |
+| `B19001_006` | $35,000 to $49,999 |
+| `B19001_007` | $50,000 to $74,999 |
+| `B19001_008` | $75,000 to $99,999 |
+| `B19001_009` | $100,000 to $124,999 |
+| `B19001_010` | $125,000 to $149,999 |
+| `B19001_011` | $150,000 to $199,999 |
+| `B19001_012` | $200,000 or more |
+
+No income midpoints are required — entropy depends only on the *shape* of the distribution (shares per bracket), not the dollar amounts.
+
+#### Smoothing approach
+
+Follows the project's standard principle of smoothing **inputs before applying the formula**:
+
+1. Interpolate all 11 B19001 bin counts from block-group polygons to H3 hexes via `tidycensus::interpolate_pw()` (`extensive = TRUE` — counts, not rates), using SE 2025 household counts as the population-weight surface.
+2. For the **smoothed** value: apply `smooth_by_neighbors` to each of the 11 bin counts independently, then compute entropy from the smoothed distribution. This reflects the income mix of the surrounding neighborhood, not just an average of neighboring entropy scores.
+3. For the **raw** value: compute entropy directly from the interpolated (unsmoothed) bin counts for that hex alone.
+4. For **L8**: aggregate the L9 bin counts to L8 by summing each bin across all ~7 L9 children, then apply the same smooth→entropy pattern.
+
+Hexes with no households receive `NA`.
 
 ---
 
@@ -136,6 +204,8 @@ RING1_WEIGHT  <- 0.3
 RING2_WEIGHT  <- 0.2
 RING3_WEIGHT  <- 0.1
 
+INCOME_BINS <- sprintf("B19001_%03d", 2:12)   # B19001_002 … B19001_012
+
 WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
   "Metropolitan Center" = 1.0,
   "Urban Center"        = 0.8,
@@ -145,20 +215,22 @@ WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
 
 ## Data sources
 
-| Source | Fetch method | Cache location |
-|--------|-------------|----------------|
-| WFRC SE 2025 (input) | Local GDB zip | `_data/wfrc_se_2025_rtp23.gdb.zip` |
-| Street intersection density | ArcGIS REST | `_data/remote/design/` |
-| WC Centers & Land Uses | ArcGIS REST | `_data/remote/destinations/` |
-| Healthcare facilities | ArcGIS REST | `_data/remote/destinations/health_care.gpkg` |
-| Schools (PreK–12) | ArcGIS REST | `_data/remote/destinations/schools.gpkg` |
-| Grocery & food stores | ArcGIS REST | `_data/remote/destinations/grocery_stores.gpkg` |
-| Community services (city halls) | ArcGIS REST | `_data/remote/destinations/city_halls.gpkg` |
-| Parks (local + WFRC) | ArcGIS REST | `_data/remote/destinations/` |
-| Emergency Medical Services | ArcGIS REST | `_data/remote/destinations/ems_stations.gpkg` |
-| ACS BG median income (B19013_001) | tidycensus | `_data/remote/demographics/bg_income.gpkg` |
-| UTA GTFS | download.file | `_data/remote/transit/` |
-| Utah county boundaries | tigris | `_data/remote/boundaries/` |
+| Source | ACS/API variable | Fetch method | Cache location |
+|--------|-----------------|-------------|----------------|
+| WFRC SE 2025 (input) | — | Local GDB zip | `_data/wfrc_se_2025_rtp23.gdb.zip` |
+| Street intersection density | — | ArcGIS REST | `_data/remote/design/` |
+| WC Centers & Land Uses | — | ArcGIS REST | `_data/remote/destinations/` |
+| Healthcare facilities | — | ArcGIS REST | `_data/remote/destinations/health_care.gpkg` |
+| Schools (PreK–12) | — | ArcGIS REST | `_data/remote/destinations/schools.gpkg` |
+| Grocery & food stores | — | ArcGIS REST | `_data/remote/destinations/grocery_stores.gpkg` |
+| Community services (city halls) | — | ArcGIS REST | `_data/remote/destinations/city_halls.gpkg` |
+| Parks (local + WFRC) | — | ArcGIS REST | `_data/remote/destinations/` |
+| Emergency Medical Services | — | ArcGIS REST | `_data/remote/destinations/ems_stations.gpkg` |
+| ACS median HH income | `B19013_001` | tidycensus | `_data/remote/demographics/bg_income.gpkg` |
+| ACS income distribution (11 bins) | `B19001_002`–`B19001_012` | tidycensus | `_data/remote/demographics/bg_income_dist.gpkg` |
+| 2020 Census HH weights | `H1_002N` | tidycensus | `_data/remote/demographics/blocks_2020_hh.gpkg` |
+| UTA GTFS | — | download.file | `_data/remote/transit/` |
+| Utah county boundaries | — | tigris | `_data/remote/boundaries/` |
 
 Remote data is fetched once and cached locally as `.gpkg` files (full, unfiltered). SQL `WHERE` filters are applied at read time on each run. To change a filter, edit the `where` argument in `fetch_or_cache(...)` and re-run `index.R` — no re-download required.
 
@@ -194,9 +266,9 @@ tidycensus::census_api_key("YOUR_KEY", install = TRUE)
 Open the project in RStudio and source `index.R`. The script will:
 
 1. Fetch and cache all remote data (first run only — subsequent runs load from cache)
-2. Calculate all six D variables plus seven Destinations sub-components at both H3 level 8 and level 9
+2. Calculate all six D variables, seven Destinations sub-components, and Income Diversity Index at both H3 level 8 and level 9
 3. Export `_output/wfrc_se_2025_rtp23.gdb.zip` with all original SE columns plus D variable columns
-4. Export PMTiles (`_app/public/l9.pmtiles`, `_app/public/l8.pmtiles`) and `_app/public/metadata.json` for the web app
+4. Export PMTiles (`_app/public/data/l9.pmtiles`, `_app/public/data/l8.pmtiles`) and `_app/public/data/metadata.json` for the web app
 
 ## Output columns
 
@@ -216,6 +288,8 @@ The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8`
 | `destinations_raw` | numeric | WC center + amenity composite 0–1 (raw) |
 | `demographics_smoothed` | numeric | Estimated median HH income, $ (smoothed) |
 | `demographics_raw` | numeric | Estimated median HH income, $ (raw) |
+| `income_diversity_smoothed` | numeric | Income Diversity Index (1 − Gini) 0–1 (smoothed) |
+| `income_diversity_raw` | numeric | Income Diversity Index (1 − Gini) 0–1 (raw) |
 | `transit_dist_smoothed` | numeric | Distance to nearest frequent stop, miles (smoothed) |
 | `transit_dist_raw` | numeric | Distance to nearest frequent stop, miles (raw) |
 

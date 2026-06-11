@@ -23,11 +23,8 @@ WC_CENTER_WEIGHTS <- c(
   "Industrial District" = 0.0
 )
 
-# Income Diversity Index: B19001 income brackets + assumed midpoints (sorted ascending)
-# The open-ended $200k+ bin uses an assumed midpoint of $300k.
-INCOME_BINS      <- sprintf("B19001_%03d", 2:12)
-INCOME_MIDPOINTS <- c(5000, 12500, 20000, 30000, 42500, 62500,
-                      87500, 112500, 137500, 175000, 300000)
+# Income Diversity Index: B19001 income brackets (B19001_002 … B19001_012)
+INCOME_BINS <- sprintf("B19001_%03d", 2:12)
 
 root <- here::here()
 
@@ -52,7 +49,7 @@ fetch_or_cache <- function(url, cache_path, layer = NULL, where = NULL) {
   if (!file.exists(full_path)) {
     dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
     data <- tryCatch(
-      arcgislayers::arc_select(arcgislayers::arc_open(url)),
+      arcgislayers::arc_select(arcgislayers::arc_open(url), crs = sf::st_crs(4326L)),
       error = function(e) stop("Failed to fetch '", cache_path, "': ", conditionMessage(e))
     )
     if (is.na(sf::st_crs(data))) sf::st_crs(data) <- 4326L
@@ -98,18 +95,14 @@ smooth_by_neighbors <- function(hex_ids, values, neighbor_index) {
   agg[hex_ids, , drop = TRUE]
 }
 
-# Gini index from binned income data via Lorenz curve trapezoidal approximation.
-# counts and midpoints must be the same length, sorted by ascending income.
-gini_from_bins <- function(counts, midpoints) {
+# Shannon entropy diversity index from binned income counts, normalized to 0–1.
+# 0 = all households in one bracket (no diversity); 1 = perfectly even across all brackets.
+entropy_from_bins <- function(counts) {
   counts[is.na(counts) | counts < 0] <- 0
-  total_hh     <- sum(counts)
-  if (total_hh == 0) return(NA_real_)
-  total_income <- sum(counts * midpoints)
-  if (total_income == 0) return(NA_real_)
-  p <- c(0, cumsum(counts) / total_hh)
-  q <- c(0, cumsum(counts * midpoints) / total_income)
-  n <- length(p)
-  1 - sum((p[2:n] - p[1:(n-1)]) * (q[2:n] + q[1:(n-1)]))
+  total <- sum(counts)
+  if (total == 0) return(NA_real_)
+  p <- counts[counts > 0] / total
+  -sum(p * log(p)) / log(length(counts))
 }
 
 # 1 if any feature from features_sf touches the hex, 0 otherwise
@@ -428,20 +421,24 @@ hex_income_dist <- tidycensus::interpolate_pw(
   weight_placement = "surface"
 )
 
-# bin_matrix rows correspond 1-to-1 with hex_ids (interpolate_pw preserves to order)
+# Reindex by hex_id to guarantee row order matches hex_ids, consistent with how
+# demographics_interp is handled. interpolate_pw currently preserves to order,
+# but the explicit match is defensive against any future change.
 bin_matrix <- sf::st_drop_geometry(hex_income_dist) |>
+  dplyr::select(hex_id, dplyr::all_of(INCOME_BINS)) |>
+  dplyr::slice(match(hex_ids, hex_id)) |>
   dplyr::select(dplyr::all_of(INCOME_BINS)) |>
   as.matrix()
 
-income_diversity_raw <- 1 - apply(bin_matrix, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+income_diversity_raw <- apply(bin_matrix, 1L, entropy_from_bins)
 
-# Smooth each bin independently, then compute income diversity from smoothed distribution
+# Smooth each bin independently, then compute entropy from smoothed distribution
 bin_smoothed <- vapply(
   seq_len(ncol(bin_matrix)),
   function(i) smooth_by_neighbors(hex_ids, bin_matrix[, i], neighbor_index),
   numeric(length(hex_ids))
 )
-income_diversity <- 1 - apply(bin_smoothed, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+income_diversity <- apply(bin_smoothed, 1L, entropy_from_bins)
 
 ## Distance to Transit
 centroids        <- sf::st_centroid(sf::st_geometry(se_hex))
@@ -618,14 +615,14 @@ bin_df_l8 <- bin_df_l8 |>
   dplyr::summarise(dplyr::across(dplyr::all_of(INCOME_BINS), sum), .groups = "drop")
 bin_matrix_l8 <- bin_df_l8[match(h8_ids, bin_df_l8$h8_id), INCOME_BINS] |> as.matrix()
 
-income_diversity_raw_l8 <- 1 - apply(bin_matrix_l8, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+income_diversity_raw_l8 <- apply(bin_matrix_l8, 1L, entropy_from_bins)
 
 bin_smoothed_l8 <- vapply(
   seq_len(ncol(bin_matrix_l8)),
   function(i) smooth_by_neighbors(h8_ids, bin_matrix_l8[, i], neighbor_index_l8),
   numeric(length(h8_ids))
 )
-income_diversity_l8 <- 1 - apply(bin_smoothed_l8, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+income_diversity_l8 <- apply(bin_smoothed_l8, 1L, entropy_from_bins)
 
 ## Distance to Transit (L8)
 centroids_l8        <- sf::st_centroid(sf::st_geometry(se_l8))
