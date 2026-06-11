@@ -11,7 +11,8 @@ export type DVariable =
   | 'destinations_park'
   | 'destinations_ems'
   | 'demographics'
-  | 'transit_dist';
+  | 'transit_dist'
+  | 'income_diversity';
 
 export type HexLevel = 'l9' | 'l8';
 export type LevelMode = 'auto' | HexLevel;
@@ -44,6 +45,7 @@ export interface PopupData {
   destinations_ems: number | null;           destinations_ems_raw: number | null;
   demographics: number | null;               demographics_raw: number | null;
   transit_dist: number | null;               transit_dist_raw: number | null;
+  income_diversity: number | null;           income_diversity_raw: number | null;
 }
 
 export interface ColorStop {

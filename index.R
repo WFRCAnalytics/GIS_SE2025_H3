@@ -23,6 +23,12 @@ WC_CENTER_WEIGHTS <- c(
   "Industrial District" = 0.0
 )
 
+# Income Diversity Index: B19001 income brackets + assumed midpoints (sorted ascending)
+# The open-ended $200k+ bin uses an assumed midpoint of $300k.
+INCOME_BINS      <- sprintf("B19001_%03d", 2:12)
+INCOME_MIDPOINTS <- c(5000, 12500, 20000, 30000, 42500, 62500,
+                      87500, 112500, 137500, 175000, 300000)
+
 root <- here::here()
 
 # ── Libraries ─────────────────────────────────────────────────────────────────
@@ -92,6 +98,20 @@ smooth_by_neighbors <- function(hex_ids, values, neighbor_index) {
   agg[hex_ids, , drop = TRUE]
 }
 
+# Gini index from binned income data via Lorenz curve trapezoidal approximation.
+# counts and midpoints must be the same length, sorted by ascending income.
+gini_from_bins <- function(counts, midpoints) {
+  counts[is.na(counts) | counts < 0] <- 0
+  total_hh     <- sum(counts)
+  if (total_hh == 0) return(NA_real_)
+  total_income <- sum(counts * midpoints)
+  if (total_income == 0) return(NA_real_)
+  p <- c(0, cumsum(counts) / total_hh)
+  q <- c(0, cumsum(counts * midpoints) / total_income)
+  n <- length(p)
+  1 - sum((p[2:n] - p[1:(n-1)]) * (q[2:n] + q[1:(n-1)]))
+}
+
 # 1 if any feature from features_sf touches the hex, 0 otherwise
 flag_presence <- function(hex_sf, features_sf) {
   ft <- sf::st_transform(features_sf, sf::st_crs(hex_sf))
@@ -138,7 +158,7 @@ center_boundaries <- fetch_or_cache(
 health_care <- fetch_or_cache(
   url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/LicensedHealthCareFacilities/FeatureServer/0",
   cache_path = "_data/remote/destinations/health_care.gpkg",
-  where      = "LICENSE_TYPE NOT IN ('Assisted Living Facility - Type I', 'Assisted Living Facility - Type II', 'Personal Care Agency', 'Home Health Agency', 'Hospice', 'Birthing Center', 'Abortion Clinic')"
+  where      = "LICENSE_TYPE NOT IN ('Assisted Living Facility - Type I', 'Assisted Living Facility - Type II', 'Home Health Agency', 'Hospice', 'Birthing Center', 'Abortion Clinic')"
 )
 schools <- fetch_or_cache(
   url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Schools_PreKto12/FeatureServer/0",
@@ -185,6 +205,27 @@ if (!file.exists(bg_income_path)) {
   sf::write_sf(bg_income, bg_income_path, driver = "GPKG")
 } else {
   bg_income <- sf::read_sf(bg_income_path)
+}
+
+# Demographics: B19001 income distribution bins (for Income Diversity Index / Gini)
+bg_income_dist_path <- file.path(root, "_data/remote/demographics/bg_income_dist.gpkg")
+if (!file.exists(bg_income_dist_path)) {
+  dir.create(dirname(bg_income_dist_path), recursive = TRUE, showWarnings = FALSE)
+  bg_income_dist <- tidycensus::get_acs(
+    geography = "block group",
+    variables = c("B19001_001", INCOME_BINS),
+    state     = "UT",
+    county    = c("Box Elder", "Davis", "Weber", "Salt Lake", "Utah",
+                  "Tooele", "Morgan", "Summit", "Wasatch"),
+    year      = 2023,
+    output    = "wide",
+    geometry  = TRUE
+  ) |>
+    dplyr::select(GEOID, dplyr::ends_with("E"), geometry) |>
+    dplyr::rename_with(~ sub("E$", "", .x), dplyr::ends_with("E"))
+  sf::write_sf(bg_income_dist, bg_income_dist_path)
+} else {
+  bg_income_dist <- sf::read_sf(bg_income_dist_path)
 }
 
 # Transit: UTA GTFS
@@ -369,6 +410,39 @@ demographics_raw <- tibble::tibble(hex_id = hex_ids) |>
   dplyr::pull(estimate)
 demographics <- smooth_by_neighbors(hex_ids, demographics_raw, neighbor_index)
 
+## Income Diversity — Gini from B19001 household income distribution bins (L9)
+# Interpolate bin counts from BG polygons to hexes. extensive = TRUE because
+# these are household counts, not rates; the interpolation distributes each BG's
+# bin counts proportionally by the household surface within each hex.
+bg_bins <- bg_income_dist |>
+  sf::st_transform(hex_crs) |>
+  dplyr::select(dplyr::all_of(INCOME_BINS))
+
+hex_income_dist <- tidycensus::interpolate_pw(
+  from             = bg_bins,
+  to               = se_hex,
+  to_id            = "hex_id",
+  extensive        = TRUE,
+  weights          = se_hex[, c("hex_id", "households")],
+  weight_column    = "households",
+  weight_placement = "surface"
+)
+
+# bin_matrix rows correspond 1-to-1 with hex_ids (interpolate_pw preserves to order)
+bin_matrix <- sf::st_drop_geometry(hex_income_dist) |>
+  dplyr::select(dplyr::all_of(INCOME_BINS)) |>
+  as.matrix()
+
+income_diversity_raw <- 1 - apply(bin_matrix, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+
+# Smooth each bin independently, then compute income diversity from smoothed distribution
+bin_smoothed <- vapply(
+  seq_len(ncol(bin_matrix)),
+  function(i) smooth_by_neighbors(hex_ids, bin_matrix[, i], neighbor_index),
+  numeric(length(hex_ids))
+)
+income_diversity <- 1 - apply(bin_smoothed, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+
 ## Distance to Transit
 centroids        <- sf::st_centroid(sf::st_geometry(se_hex))
 dist_mat         <- sf::st_distance(centroids, frequent_stops)
@@ -413,6 +487,8 @@ se_hex$demographics              <- demographics
 se_hex$demographics_raw          <- demographics_raw
 se_hex$transit_dist              <- transit_dist
 se_hex$transit_dist_raw          <- transit_dist_raw
+se_hex$income_diversity          <- income_diversity
+se_hex$income_diversity_raw      <- income_diversity_raw
 
 # ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
 
@@ -532,6 +608,25 @@ demographics_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
   dplyr::pull(estimate)
 demographics_l8 <- smooth_by_neighbors(h8_ids, demographics_raw_l8, neighbor_index_l8)
 
+## Income Diversity (L8) — aggregate L9 bin counts to L8, then compute Gini
+# Sum each bin column across L9 children into their L8 parent, then apply the
+# same smooth-bins-first → compute-Gini approach used at L9.
+bin_df_l8 <- as.data.frame(bin_matrix)
+bin_df_l8$h8_id <- h8_ids_vec
+bin_df_l8 <- bin_df_l8 |>
+  dplyr::group_by(h8_id) |>
+  dplyr::summarise(dplyr::across(dplyr::all_of(INCOME_BINS), sum), .groups = "drop")
+bin_matrix_l8 <- bin_df_l8[match(h8_ids, bin_df_l8$h8_id), INCOME_BINS] |> as.matrix()
+
+income_diversity_raw_l8 <- 1 - apply(bin_matrix_l8, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+
+bin_smoothed_l8 <- vapply(
+  seq_len(ncol(bin_matrix_l8)),
+  function(i) smooth_by_neighbors(h8_ids, bin_matrix_l8[, i], neighbor_index_l8),
+  numeric(length(h8_ids))
+)
+income_diversity_l8 <- 1 - apply(bin_smoothed_l8, 1L, gini_from_bins, midpoints = INCOME_MIDPOINTS)
+
 ## Distance to Transit (L8)
 centroids_l8        <- sf::st_centroid(sf::st_geometry(se_l8))
 dist_mat_l8         <- sf::st_distance(centroids_l8, frequent_stops)
@@ -574,6 +669,8 @@ se_l8$demographics               <- demographics_l8
 se_l8$demographics_raw           <- demographics_raw_l8
 se_l8$transit_dist               <- transit_dist_l8
 se_l8$transit_dist_raw           <- transit_dist_raw_l8
+se_l8$income_diversity           <- income_diversity_l8
+se_l8$income_diversity_raw       <- income_diversity_raw_l8
 
 # ── Visualization: Diversity — smoothed vs raw (L9) ───────────────────────────
 
@@ -644,7 +741,7 @@ zip_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
 
 # Rename smoothed D-variable columns to _smoothed so raw and smoothed names are
 # symmetric and unambiguous (density_smoothed / density_raw, etc.).
-d_vars <- c("density", "diversity", "design", "destinations", "demographics", "transit_dist")
+d_vars <- c("density", "diversity", "design", "destinations", "demographics", "transit_dist", "income_diversity")
 rename_smoothed <- function(sf_obj) {
   dplyr::rename_with(sf_obj, ~ paste0(.x, "_smoothed"), dplyr::all_of(d_vars))
 }
@@ -674,8 +771,9 @@ app_cols <- c(
   "destinations_cityhall", "destinations_cityhall_raw",
   "destinations_park",     "destinations_park_raw",
   "destinations_ems",      "destinations_ems_raw",
-  "demographics", "demographics_raw",
-  "transit_dist", "transit_dist_raw"
+  "demographics",     "demographics_raw",
+  "transit_dist",     "transit_dist_raw",
+  "income_diversity", "income_diversity_raw"
 )
 
 # Export PMTiles — viewport-aware tiles for faster web app loading.
@@ -702,7 +800,7 @@ compute_level_breaks <- function(sf_obj) {
     "destinations",
     "destinations_center", "destinations_health", "destinations_school",
     "destinations_grocery", "destinations_cityhall", "destinations_park", "destinations_ems",
-    "demographics", "transit_dist"
+    "demographics", "transit_dist", "income_diversity"
   )
   lapply(setNames(vars, vars), function(v) {
     vals <- c(df[[v]], df[[paste0(v, "_raw")]])

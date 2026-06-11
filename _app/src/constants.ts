@@ -127,6 +127,15 @@ export const VARIABLE_CONFIGS: Record<DVariable, VariableConfig> = {
     invert: false,
     formatValue: (v) => `$${Math.round(v).toLocaleString()}`,
   },
+  income_diversity: {
+    label: 'Income Diversity',
+    fullName: 'Income Diversity Index',
+    unit: 'score (0–1)',
+    description: 'Income diversity score (1 − Gini): higher = more balanced income distribution',
+    palette: RdYlGn9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
   transit_dist: {
     label: 'Distance to Transit',
     fullName: 'Transit Access',
@@ -143,7 +152,7 @@ export const D_VARIABLES: DVariable[] = [
   'destinations',
   'destinations_center', 'destinations_health', 'destinations_school',
   'destinations_grocery', 'destinations_cityhall', 'destinations_park', 'destinations_ems',
-  'demographics', 'transit_dist',
+  'demographics', 'income_diversity', 'transit_dist',
 ];
 
 export const CARTO_POSITRON = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';

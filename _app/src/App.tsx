@@ -49,6 +49,7 @@ export default function App() {
       destinations_ems:          num(props.destinations_ems),          destinations_ems_raw:      num(props.destinations_ems_raw),
       demographics:              num(props.demographics),              demographics_raw:          num(props.demographics_raw),
       transit_dist:              num(props.transit_dist),              transit_dist_raw:          num(props.transit_dist_raw),
+      income_diversity:          num(props.income_diversity),          income_diversity_raw:      num(props.income_diversity_raw),
     });
   }, []);
 
