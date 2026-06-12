@@ -19,9 +19,7 @@ export function HexInfoBox({ data, activeVariable }: HexInfoBoxProps) {
       >
         <div style={styles.headerLeft}>
           <span style={styles.title}>Hex Details</span>
-          {data && (
-            <span style={styles.hexId}>{data.hex_id}</span>
-          )}
+          {data && <span style={styles.hexId}>{data.hex_id}</span>}
         </div>
         <svg
           width="12" height="12" viewBox="0 0 12 12" fill="none"
@@ -36,20 +34,28 @@ export function HexInfoBox({ data, activeVariable }: HexInfoBoxProps) {
           {!data ? (
             <div style={styles.placeholder}>Hover a hexagon for details</div>
           ) : (
-            <div style={styles.grid}>
+            <div style={styles.table}>
+              {/* Column headers */}
+              <div style={styles.colHeader}>
+                <span />
+                <span style={{ ...styles.colHeadLabel, color: 'var(--color-primary)' }}>Smoothed</span>
+                <span style={{ ...styles.colHeadLabel, color: 'var(--color-text-secondary)' }}>Raw</span>
+              </div>
+
+              {/* Variable rows */}
               {D_VARIABLES.map(varId => {
-                const cfg = VARIABLE_CONFIGS[varId];
+                const cfg    = VARIABLE_CONFIGS[varId];
                 const smooth = data[varId as keyof PopupData] as number | null;
                 const raw    = data[`${varId}_raw` as keyof PopupData] as number | null;
                 const isActive = varId === activeVariable;
                 return (
                   <div key={varId} style={{ ...styles.row, ...(isActive ? styles.rowActive : {}) }}>
                     <div style={styles.varLabel}>{cfg.label}</div>
-                    <div style={styles.values}>
-                      <span style={styles.tag}>S</span>
-                      <span style={styles.val}>{smooth == null ? '—' : cfg.formatValue(smooth)}</span>
-                      <span style={{ ...styles.tag, ...styles.tagRaw }}>R</span>
-                      <span style={styles.val}>{raw == null ? '—' : cfg.formatValue(raw)}</span>
+                    <div style={{ ...styles.val, color: 'var(--color-primary)' }}>
+                      {smooth == null ? '—' : cfg.formatValue(smooth)}
+                    </div>
+                    <div style={{ ...styles.val, color: 'var(--color-text-secondary)' }}>
+                      {raw == null ? '—' : cfg.formatValue(raw)}
                     </div>
                   </div>
                 );
@@ -62,27 +68,20 @@ export function HexInfoBox({ data, activeVariable }: HexInfoBoxProps) {
   );
 }
 
+const ROW_COLS = '1fr 82px 82px';
+
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    position: 'absolute',
-    bottom: 44,
-    left: 12,
-    width: 226,
-    zIndex: 10,
-    background: 'rgba(255,255,255,0.95)',
-    backdropFilter: 'blur(6px)',
-    borderRadius: 'var(--radius)',
-    border: '1px solid var(--color-border)',
-    boxShadow: 'var(--shadow-md)',
-    overflow: 'hidden',
-    pointerEvents: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    padding: '7px 10px',
+    padding: '7px 12px',
     background: 'var(--color-surface-raised)',
     borderBottom: '1px solid var(--color-border)',
     cursor: 'pointer',
@@ -113,23 +112,41 @@ const styles: Record<string, React.CSSProperties> = {
   },
   body: {
     overflowY: 'auto',
-    maxHeight: 280,
+    flex: 1,
+    minHeight: 0,
   },
   placeholder: {
-    padding: '10px 10px',
+    padding: '16px 12px',
     fontSize: 11,
     color: 'var(--color-text-disabled)',
     textAlign: 'center',
     lineHeight: 1.5,
   },
-  grid: {
-    padding: '4px 0',
+  table: {
+    padding: '4px 0 8px',
+  },
+  colHeader: {
+    display: 'grid',
+    gridTemplateColumns: ROW_COLS,
+    padding: '4px 12px 4px',
+    gap: '0 6px',
+    borderBottom: '1px solid var(--color-border)',
+    marginBottom: 2,
+  },
+  colHeadLabel: {
+    fontSize: 9,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    textAlign: 'right',
   },
   row: {
-    padding: '4px 10px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
+    display: 'grid',
+    gridTemplateColumns: ROW_COLS,
+    gap: '0 6px',
+    padding: '4px 12px',
+    alignItems: 'center',
+    borderLeft: '2px solid transparent',
   },
   rowActive: {
     background: 'var(--color-primary-10)',
@@ -138,33 +155,16 @@ const styles: Record<string, React.CSSProperties> = {
   varLabel: {
     fontSize: 10,
     fontWeight: 600,
-    color: 'var(--color-text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-  values: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-  },
-  tag: {
-    fontSize: 9,
-    fontWeight: 700,
-    background: '#0067B1',
-    color: 'white',
-    borderRadius: 2,
-    padding: '0 3px',
-    letterSpacing: '0.05em',
-    lineHeight: '14px',
-  },
-  tagRaw: {
-    background: '#5A6A7A',
-    marginLeft: 4,
+    color: 'var(--color-text)',
+    letterSpacing: '0.02em',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   val: {
     fontSize: 11,
     fontWeight: 500,
-    color: 'var(--color-text)',
     fontVariantNumeric: 'tabular-nums',
+    textAlign: 'right',
   },
 };

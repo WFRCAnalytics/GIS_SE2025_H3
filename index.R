@@ -367,15 +367,15 @@ ems_flag        <- flag_presence(se_hex, ems_stations)
 
 amenity_score    <- (healthcare_flag + highschool_flag + grocery_flag + cityhall_flag + park_flag + ems_flag) / 6
 raw_destinations <- 0.6 * wc_score + 0.4 * amenity_score
-destinations     <- smooth_by_neighbors(hex_ids, raw_destinations, neighbor_index)
+destinations     <- pmax(0, smooth_by_neighbors(hex_ids, raw_destinations, neighbor_index))
 
-destinations_center   <- smooth_by_neighbors(hex_ids, wc_score,        neighbor_index)
-destinations_health   <- smooth_by_neighbors(hex_ids, healthcare_flag, neighbor_index)
-destinations_school   <- smooth_by_neighbors(hex_ids, highschool_flag, neighbor_index)
-destinations_grocery  <- smooth_by_neighbors(hex_ids, grocery_flag,    neighbor_index)
-destinations_cityhall <- smooth_by_neighbors(hex_ids, cityhall_flag,   neighbor_index)
-destinations_park     <- smooth_by_neighbors(hex_ids, park_flag,       neighbor_index)
-destinations_ems      <- smooth_by_neighbors(hex_ids, ems_flag,        neighbor_index)
+destinations_center   <- pmax(0, smooth_by_neighbors(hex_ids, wc_score,        neighbor_index))
+destinations_health   <- pmax(0, smooth_by_neighbors(hex_ids, healthcare_flag, neighbor_index))
+destinations_school   <- pmax(0, smooth_by_neighbors(hex_ids, highschool_flag, neighbor_index))
+destinations_grocery  <- pmax(0, smooth_by_neighbors(hex_ids, grocery_flag,    neighbor_index))
+destinations_cityhall <- pmax(0, smooth_by_neighbors(hex_ids, cityhall_flag,   neighbor_index))
+destinations_park     <- pmax(0, smooth_by_neighbors(hex_ids, park_flag,       neighbor_index))
+destinations_ems      <- pmax(0, smooth_by_neighbors(hex_ids, ems_flag,        neighbor_index))
 
 ## Demographics
 # Household-weighted interpolation from BG → hex using SE 2025 estimated HH as
@@ -572,15 +572,15 @@ ems_flag_l8        <- flag_presence(se_l8, ems_stations)
 amenity_score_l8    <- (healthcare_flag_l8 + highschool_flag_l8 + grocery_flag_l8 +
                         cityhall_flag_l8 + park_flag_l8 + ems_flag_l8) / 6
 raw_destinations_l8 <- 0.6 * wc_score_l8 + 0.4 * amenity_score_l8
-destinations_l8     <- smooth_by_neighbors(h8_ids, raw_destinations_l8, neighbor_index_l8)
+destinations_l8     <- pmax(0, smooth_by_neighbors(h8_ids, raw_destinations_l8, neighbor_index_l8))
 
-destinations_center_l8   <- smooth_by_neighbors(h8_ids, wc_score_l8,         neighbor_index_l8)
-destinations_health_l8   <- smooth_by_neighbors(h8_ids, healthcare_flag_l8,  neighbor_index_l8)
-destinations_school_l8   <- smooth_by_neighbors(h8_ids, highschool_flag_l8,  neighbor_index_l8)
-destinations_grocery_l8  <- smooth_by_neighbors(h8_ids, grocery_flag_l8,     neighbor_index_l8)
-destinations_cityhall_l8 <- smooth_by_neighbors(h8_ids, cityhall_flag_l8,    neighbor_index_l8)
-destinations_park_l8     <- smooth_by_neighbors(h8_ids, park_flag_l8,        neighbor_index_l8)
-destinations_ems_l8      <- smooth_by_neighbors(h8_ids, ems_flag_l8,         neighbor_index_l8)
+destinations_center_l8   <- pmax(0, smooth_by_neighbors(h8_ids, wc_score_l8,         neighbor_index_l8))
+destinations_health_l8   <- pmax(0, smooth_by_neighbors(h8_ids, healthcare_flag_l8,  neighbor_index_l8))
+destinations_school_l8   <- pmax(0, smooth_by_neighbors(h8_ids, highschool_flag_l8,  neighbor_index_l8))
+destinations_grocery_l8  <- pmax(0, smooth_by_neighbors(h8_ids, grocery_flag_l8,     neighbor_index_l8))
+destinations_cityhall_l8 <- pmax(0, smooth_by_neighbors(h8_ids, cityhall_flag_l8,    neighbor_index_l8))
+destinations_park_l8     <- pmax(0, smooth_by_neighbors(h8_ids, park_flag_l8,        neighbor_index_l8))
+destinations_ems_l8      <- pmax(0, smooth_by_neighbors(h8_ids, ems_flag_l8,         neighbor_index_l8))
 
 ## Demographics (L8)
 demographics_interp_l8 <- tidycensus::interpolate_pw(
@@ -668,6 +668,13 @@ se_l8$transit_dist               <- transit_dist_l8
 se_l8$transit_dist_raw           <- transit_dist_raw_l8
 se_l8$income_diversity           <- income_diversity_l8
 se_l8$income_diversity_raw       <- income_diversity_raw_l8
+
+# Destination scores are logically bounded [0, 1]; clamp any floating-point
+# overshoot before writing to metadata / PMTiles.
+for (.col in grep("^destinations", names(se_l8), value = TRUE)) {
+  se_l8[[.col]] <- pmax(0, pmin(1, se_l8[[.col]]))
+}
+rm(.col)
 
 # ── Visualization: Diversity — smoothed vs raw (L9) ───────────────────────────
 
@@ -801,17 +808,27 @@ compute_level_breaks <- function(sf_obj) {
   )
   lapply(setNames(vars, vars), function(v) {
     vals <- c(df[[v]], df[[paste0(v, "_raw")]])
+    # Destination scores are logically [0, 1]; clamp any floating-point overshoot.
+    if (startsWith(v, "destinations")) vals <- pmax(0, pmin(1, vals))
     vals <- vals[!is.na(vals) & is.finite(vals)]
     k    <- min(N_BREAKS, length(unique(vals)))
     if (k < 2L) {
-      return(list(breaks = numeric(0), min = min(vals, na.rm = TRUE), max = max(vals, na.rm = TRUE)))
+      return(list(breaks = numeric(0), min = min(vals, na.rm = TRUE), max = max(vals, na.rm = TRUE), counts = integer(0)))
     }
     brks <- classInt::classIntervals(vals, k, style = "fisher")$brks
+    # Count smoothed hex values per bin (used by the app's histogram legend)
+    smoothed <- df[[v]]
+    smoothed <- smoothed[!is.na(smoothed) & is.finite(smoothed)]
+    bin_idx   <- .bincode(smoothed, brks, right = TRUE, include.lowest = TRUE)
+    bin_counts <- tabulate(bin_idx, nbins = k)
     list(
       # I(unname()) strips H3-ID names and prevents auto_unbox on length-1 vectors
       breaks = I(unname(round(brks[-c(1L, length(brks))], 8L))),
-      min    = brks[[1L]],
-      max    = brks[[length(brks)]]
+      # Use actual data min/max rather than brks endpoints: classInt Fisher can
+      # produce boundary breaks slightly outside the data range.
+      min    = min(vals),
+      max    = max(vals),
+      counts = I(unname(as.integer(bin_counts)))
     )
   })
 }

@@ -1,15 +1,12 @@
 import type { DVariable, HexLevel, LevelMode } from '../../types';
-import type { ColorScale } from '../../lib/colorScale';
 import { VariableSelector } from '../ui/VariableSelector';
 import { LevelToggle } from '../ui/LevelToggle';
-import { Legend } from '../map/Legend';
 import { VARIABLE_CONFIGS } from '../../constants';
 
 interface SidebarProps {
   variable: DVariable;
   level: HexLevel;
   levelMode: LevelMode;
-  colorScale: ColorScale | null;
   disabled: boolean;
   roadsAbove: boolean;
   hexOpacity: number;
@@ -20,7 +17,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  variable, level, levelMode, colorScale,
+  variable, level, levelMode,
   disabled, roadsAbove, hexOpacity, onVariableChange, onLevelModeChange, onRoadsAboveChange, onOpacityChange,
 }: SidebarProps) {
   const cfg = VARIABLE_CONFIGS[variable];
@@ -37,11 +34,6 @@ export function Sidebar({
       <div style={styles.desc}>{cfg.description}</div>
 
       <div style={styles.sep} />
-
-      {/* Legend */}
-      <div style={styles.section}>
-        <Legend variable={variable} colorScale={colorScale} />
-      </div>
 
       {/* Hex opacity slider */}
       <div style={styles.section}>

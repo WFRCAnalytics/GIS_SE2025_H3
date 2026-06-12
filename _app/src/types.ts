@@ -21,6 +21,7 @@ export interface BreakData {
   breaks: number[];
   min: number;
   max: number;
+  counts: number[];
 }
 
 export type LevelMeta = Record<DVariable, BreakData>;

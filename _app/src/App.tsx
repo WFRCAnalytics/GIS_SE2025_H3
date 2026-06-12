@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
+import { RightPanel } from './components/layout/RightPanel';
 import { SwipeMap } from './components/map/SwipeMap';
-import { HexInfoBox } from './components/map/HexInfoBox';
 import { LoadingOverlay } from './components/ui/LoadingOverlay';
 import { useData } from './hooks/useData';
 import { AUTO_LEVEL_ZOOM, DEFAULT_ZOOM, VARIABLE_CONFIGS } from './constants';
@@ -70,7 +70,6 @@ export default function App() {
           variable={variable}
           level={level}
           levelMode={levelMode}
-          colorScale={level === 'l8' ? dataL8.colorScale : dataL9.colorScale}
           disabled={compositeStatus === 'initializing' || compositeStatus === 'refreshing'}
           roadsAbove={roadsAbove}
           hexOpacity={hexOpacity}
@@ -97,9 +96,14 @@ export default function App() {
             <span style={styles.mapTitleSep}>—</span>
             <span style={styles.mapTitleFull}>{VARIABLE_CONFIGS[variable].fullName}</span>
           </div>
-          <HexInfoBox data={hoveredHex} activeVariable={variable} />
           {compositeStatus !== 'ready' && <LoadingOverlay status={compositeStatus} error={errorMsg} />}
         </div>
+        <RightPanel
+          variable={variable}
+          level={level}
+          colorScale={level === 'l8' ? dataL8.colorScale : dataL9.colorScale}
+          hoveredHex={hoveredHex}
+        />
       </div>
     </div>
   );

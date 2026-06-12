@@ -3,6 +3,8 @@ import { VARIABLE_CONFIGS } from '../constants';
 
 export interface ColorScale {
   stops: ColorStop[];
+  counts: number[];
+  domainMax: number;
   smoothedExpression: unknown[];
   rawExpression: unknown[];
   getColor: (value: number | null) => string;
@@ -61,8 +63,12 @@ export function buildColorScale(variable: DVariable, breakData: BreakData): Colo
     return pal[Math.min(idx, pal.length - 1)];
   };
 
+  const counts: number[] = Array.isArray(breakData.counts) ? breakData.counts : [];
+
   return {
     stops,
+    counts,
+    domainMax: breakData.max,
     smoothedExpression: buildExpr(variable),
     rawExpression:      buildExpr(`${variable}_raw`),
     getColor,
