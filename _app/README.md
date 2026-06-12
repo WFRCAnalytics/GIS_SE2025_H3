@@ -58,7 +58,7 @@ The app exposes 14 selectable variables — the 6 core D variables, the Income D
 | `destinations_park` | Dest: Parks | Local and regional parks |
 | `destinations_ems` | Dest: EMS | Emergency Medical Services stations |
 | `demographics` | Demographics | Median household income |
-| `income_diversity` | Income Diversity | Shannon entropy of income brackets (ACS B19001); 0 = all households in one bracket, 1 = perfectly even mix |
+| `income_diversity` | Income Diversity | 3-tier income mix (ACS B19001); 0 = only one income group present, 1 = lower/middle/higher income groups equally represented |
 | `transit_dist` | Distance to Transit | Miles to nearest frequent stop |
 
 Each variable is available at H3 level 8 (zoomed out) and level 9 (zoomed in). Level switches automatically at zoom 11 or can be locked in the sidebar. Each variable also has a smoothed and a raw map panel (MapLibre swipe control).

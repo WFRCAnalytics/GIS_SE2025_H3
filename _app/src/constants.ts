@@ -131,7 +131,7 @@ export const VARIABLE_CONFIGS: Record<DVariable, VariableConfig> = {
     label: 'Income Diversity',
     fullName: 'Income Diversity Index',
     unit: 'score (0–1)',
-    description: 'Shannon entropy of income brackets: 0 = all households in one bracket, 1 = perfectly even mix across all brackets',
+    description: 'Income mix across lower- (<$60k), middle- ($60k–$125k), and higher-income ($125k+) households: 0 = only one income group present, 1 = all three groups equally represented',
     palette: RdYlGn9,
     invert: false,
     formatValue: (v) => v.toFixed(3),
