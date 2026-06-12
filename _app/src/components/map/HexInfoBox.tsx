@@ -5,10 +5,14 @@ import { D_VARIABLES, VARIABLE_CONFIGS } from '../../constants';
 interface HexInfoBoxProps {
   data: PopupData | null;
   activeVariable: DVariable;
+  panelWidth?: number;
 }
 
-export function HexInfoBox({ data, activeVariable }: HexInfoBoxProps) {
+export function HexInfoBox({ data, activeVariable, panelWidth = 280 }: HexInfoBoxProps) {
   const [collapsed, setCollapsed] = useState(false);
+  // Responsive value columns: ~28% of usable width, clamped to 58–82px
+  const valColW = Math.max(58, Math.min(82, Math.floor((panelWidth - 24) * 0.28)));
+  const rowCols = `1fr ${valColW}px ${valColW}px`;
 
   return (
     <div style={styles.container}>
@@ -36,7 +40,7 @@ export function HexInfoBox({ data, activeVariable }: HexInfoBoxProps) {
           ) : (
             <div style={styles.table}>
               {/* Column headers */}
-              <div style={styles.colHeader}>
+              <div style={{ ...styles.colHeader, gridTemplateColumns: rowCols }}>
                 <span />
                 <span style={{ ...styles.colHeadLabel, color: 'var(--color-primary)' }}>Smoothed</span>
                 <span style={{ ...styles.colHeadLabel, color: 'var(--color-text-secondary)' }}>Raw</span>
@@ -49,7 +53,7 @@ export function HexInfoBox({ data, activeVariable }: HexInfoBoxProps) {
                 const raw    = data[`${varId}_raw` as keyof PopupData] as number | null;
                 const isActive = varId === activeVariable;
                 return (
-                  <div key={varId} style={{ ...styles.row, ...(isActive ? styles.rowActive : {}) }}>
+                  <div key={varId} style={{ ...styles.row, gridTemplateColumns: rowCols, ...(isActive ? styles.rowActive : {}) }}>
                     <div style={styles.varLabel}>{cfg.label}</div>
                     <div style={{ ...styles.val, color: 'var(--color-primary)' }}>
                       {smooth == null ? '—' : cfg.formatValue(smooth)}
@@ -67,8 +71,6 @@ export function HexInfoBox({ data, activeVariable }: HexInfoBoxProps) {
     </div>
   );
 }
-
-const ROW_COLS = '1fr 82px 82px';
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -127,7 +129,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   colHeader: {
     display: 'grid',
-    gridTemplateColumns: ROW_COLS,
     padding: '4px 12px 4px',
     gap: '0 6px',
     borderBottom: '1px solid var(--color-border)',
@@ -142,7 +143,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   row: {
     display: 'grid',
-    gridTemplateColumns: ROW_COLS,
     gap: '0 6px',
     padding: '4px 12px',
     alignItems: 'center',

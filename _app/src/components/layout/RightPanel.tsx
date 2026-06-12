@@ -4,21 +4,22 @@ import { Legend } from '../map/Legend';
 import { HexInfoBox } from '../map/HexInfoBox';
 
 interface RightPanelProps {
+  width: number;
   variable: DVariable;
   level: HexLevel;
   colorScale: ColorScale | null;
   hoveredHex: PopupData | null;
 }
 
-export function RightPanel({ variable, level, colorScale, hoveredHex }: RightPanelProps) {
+export function RightPanel({ width, variable, level, colorScale, hoveredHex }: RightPanelProps) {
   return (
-    <aside style={styles.panel}>
+    <aside style={{ ...styles.panel, width }}>
       <div style={styles.legendSection}>
         <Legend variable={variable} level={level} colorScale={colorScale} />
       </div>
       <div style={styles.sep} />
       <div style={styles.detailSection}>
-        <HexInfoBox data={hoveredHex} activeVariable={variable} />
+        <HexInfoBox data={hoveredHex} activeVariable={variable} panelWidth={width} />
       </div>
     </aside>
   );
@@ -26,10 +27,8 @@ export function RightPanel({ variable, level, colorScale, hoveredHex }: RightPan
 
 const styles: Record<string, React.CSSProperties> = {
   panel: {
-    width: 'var(--sidebar-width)',
     flexShrink: 0,
     background: 'var(--color-surface)',
-    borderLeft: '1px solid var(--color-border)',
     display: 'flex',
     flexDirection: 'column',
     overflowY: 'hidden',

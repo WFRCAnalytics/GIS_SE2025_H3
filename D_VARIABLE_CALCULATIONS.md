@@ -433,7 +433,7 @@ Each layer contains all original SE columns plus:
 | `destinations_park_smoothed` / `_raw` | Park flag |
 | `destinations_ems_smoothed` / `_raw` | EMS station flag |
 | `demographics_smoothed` / `_raw` | Median HH income, $ |
-| `income_diversity_smoothed` / `_raw` | Income Diversity Index (Shannon entropy), 0–1 |
+| `income_diversity_smoothed` / `_raw` | Income Diversity Index, 0–1 |
 | `transit_dist_smoothed` / `_raw` | Distance to frequent stop, miles |
 
 ---

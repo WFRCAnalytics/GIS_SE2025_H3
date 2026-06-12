@@ -8,6 +8,29 @@ import { useData } from './hooks/useData';
 import { AUTO_LEVEL_ZOOM, DEFAULT_ZOOM, VARIABLE_CONFIGS } from './constants';
 import type { DVariable, HexLevel, LevelMode, PopupData } from './types';
 
+const PANEL_MIN = 160;
+const PANEL_MAX = 480;
+const PANEL_DEFAULT = 280;
+
+function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      style={{
+        width: 4,
+        flexShrink: 0,
+        cursor: 'col-resize',
+        background: hovered ? 'var(--color-primary-light)' : 'var(--color-border)',
+        transition: 'background 0.15s',
+        zIndex: 10,
+      }}
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    />
+  );
+}
+
 export default function App() {
   const [variable, setVariable]   = useState<DVariable>('density');
   const [levelMode, setLevelMode] = useState<LevelMode>('auto');
@@ -15,6 +38,34 @@ export default function App() {
   const [hoveredHex, setHoveredHex] = useState<PopupData | null>(null);
   const [roadsAbove, setRoadsAbove] = useState<boolean>(true);
   const [hexOpacity, setHexOpacity] = useState<number>(0.78);
+  const [leftWidth, setLeftWidth]   = useState<number>(PANEL_DEFAULT);
+  const [rightWidth, setRightWidth] = useState<number>(PANEL_DEFAULT);
+
+  const startResize = useCallback((
+    e: React.MouseEvent,
+    currentWidth: number,
+    setter: React.Dispatch<React.SetStateAction<number>>,
+    sign: 1 | -1,
+  ) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const onMove = (ev: MouseEvent) => {
+      setter(Math.max(PANEL_MIN, Math.min(PANEL_MAX, currentWidth + sign * (ev.clientX - startX))));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
+
+  const handleLeftResizeStart  = useCallback((e: React.MouseEvent) => startResize(e, leftWidth,  setLeftWidth,  1),  [leftWidth,  startResize]);
+  const handleRightResizeStart = useCallback((e: React.MouseEvent) => startResize(e, rightWidth, setRightWidth, -1), [rightWidth, startResize]);
 
   // Both levels loaded simultaneously — enables GPU-driven zoom crossfade in auto mode
   const dataL8 = useData(variable, 'l8');
@@ -67,6 +118,7 @@ export default function App() {
       <Header variable={variable} level={level} />
       <div style={styles.body}>
         <Sidebar
+          width={leftWidth}
           variable={variable}
           level={level}
           levelMode={levelMode}
@@ -78,6 +130,7 @@ export default function App() {
           onRoadsAboveChange={setRoadsAbove}
           onOpacityChange={setHexOpacity}
         />
+        <ResizeHandle onMouseDown={handleLeftResizeStart} />
         <div style={styles.mapArea}>
           <SwipeMap
             levelMode={levelMode}
@@ -98,7 +151,9 @@ export default function App() {
           </div>
           {compositeStatus !== 'ready' && <LoadingOverlay status={compositeStatus} error={errorMsg} />}
         </div>
+        <ResizeHandle onMouseDown={handleRightResizeStart} />
         <RightPanel
+          width={rightWidth}
           variable={variable}
           level={level}
           colorScale={level === 'l8' ? dataL8.colorScale : dataL9.colorScale}

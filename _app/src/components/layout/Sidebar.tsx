@@ -4,6 +4,7 @@ import { LevelToggle } from '../ui/LevelToggle';
 import { VARIABLE_CONFIGS } from '../../constants';
 
 interface SidebarProps {
+  width: number;
   variable: DVariable;
   level: HexLevel;
   levelMode: LevelMode;
@@ -17,12 +18,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  variable, level, levelMode,
+  width, variable, level, levelMode,
   disabled, roadsAbove, hexOpacity, onVariableChange, onLevelModeChange, onRoadsAboveChange, onOpacityChange,
 }: SidebarProps) {
   const cfg = VARIABLE_CONFIGS[variable];
   return (
-    <aside style={styles.sidebar}>
+    <aside style={{ ...styles.sidebar, width }}>
       {/* Controls */}
       <div style={styles.section}>
         <VariableSelector value={variable} onChange={onVariableChange} />
@@ -101,7 +102,6 @@ export function Sidebar({
 
 const styles: Record<string, React.CSSProperties> = {
   sidebar: {
-    width: 'var(--sidebar-width)',
     flexShrink: 0,
     background: 'var(--color-surface)',
     borderRight: '1px solid var(--color-border)',

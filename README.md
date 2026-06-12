@@ -11,7 +11,7 @@ Calculates six **D variables** — a standard framework for measuring urban form
 | 3 | **Design** | Street Network Design | How well-connected the street grid is; more intersections = more route choices |
 | 4 | **Destinations** | Destination Accessibility | Proximity to activity centers and everyday amenities (composite + 7 sub-components) |
 | 5 | **Demographics** | Socioeconomic Status | Median household income as an equity lens |
-| 5b | **Income Diversity** | Income Diversity Index | Shannon entropy of household income brackets; 0 = all households in one bracket, 1 = perfectly even mix across all brackets |
+| 5b | **Income Diversity** | Income Diversity Index | How evenly households are spread across all income levels; 0 = entire neighborhood in one income tier, 1 = equal representation across all tiers |
 | 6 | **Distance to Transit** | Transit Access | Distance to the nearest frequent-service transit stop |
 
 The D-variable framework originates from Cervero & Kockelman (1997) and has been refined by Ewing & Cervero (2010). These six dimensions collectively describe the built environment features most strongly associated with mode choice and vehicle miles traveled.
@@ -126,24 +126,24 @@ This framing deliberately avoids the problem of treating high median income as "
 
 Reported as part of the Demographics dimension. The column is named `income_diversity` throughout.
 
-#### Method: Shannon entropy
+#### How the score works
 
-The index uses the **Shannon entropy** formula, drawn from information theory and widely used in ecology and urban studies to measure diversity. Applied here, it measures how evenly households are distributed across the 11 ACS income brackets:
+Census data divides household incomes into **11 brackets** (from "less than $10,000/year" up to "$200,000+/year"). The score asks one question: *how evenly are the neighborhood's households spread across those 11 brackets?*
 
-```
-H  = −Σᵢ pᵢ × ln(pᵢ)          (sum over non-empty brackets only)
-income_diversity = H / ln(11)   (normalized to 0–1)
-```
+- **Score near 0** — nearly all households fall into the same one or two brackets. The neighborhood is income-homogeneous, regardless of whether those brackets are high or low. A luxury enclave where every household earns over $200k and a distressed area where every household earns under $25k both score near zero.
+- **Score near 1** — households are spread across many brackets in roughly equal shares. People at very different income levels can all find housing there.
 
-where *pᵢ* = share of households in bracket *i*, and ln(11) is the maximum possible entropy when all 11 brackets have equal shares.
-
-| Score | Meaning |
+| Score | What it means in practice |
 |---|---|
-| **0** | All households in a single income bracket — no mix |
-| **0.5** | Moderate mix; a few brackets dominate |
-| **1.0** | Perfectly even spread across all 11 brackets |
+| **0** | Entire neighborhood in one income bracket |
+| **0.5** | A few brackets account for most households |
+| **1.0** | Equal share of households in all 11 brackets |
 
-**Higher is better.** Unlike the Gini coefficient, entropy is agnostic to dollar amounts — it does not matter whether the dominant bracket is high-income or low-income; a homogeneous neighborhood scores low regardless. Improvement requires increasing the representation of *under-represented* income levels, not reducing the income of over-represented ones.
+**What makes this different from median income:** Median income tells you *where* a neighborhood sits on the income ladder. This score tells you *how wide a range of incomes* is represented. A neighborhood with a high median income can still score near 1 if it has a genuine mix of households — and vice versa.
+
+**What makes this different from the Gini coefficient:** The Gini measures income *inequality* (the gap between the richest and poorest residents). This score measures income *variety* (how many rungs of the ladder are occupied). A neighborhood where half the households earn $30k and half earn $130k could score high on inequality but also high on diversity — because both income levels are present. The Gini is a better tool for understanding wealth gaps within a community; this index is a better tool for understanding whether a community has housing accessible to people at multiple income levels.
+
+> **Technical note (for analysts):** The score is computed as normalized Shannon entropy: `−Σᵢ (pᵢ × ln pᵢ) / ln(11)`, where *pᵢ* is the share of households in bracket *i*. Division by ln(11) rescales the result to [0, 1]. This formula is agnostic to the dollar values of the brackets — it responds only to the shape of the distribution.
 
 #### ACS data source
 
@@ -168,7 +168,7 @@ The table provides **household counts** (not percentages) for 11 income brackets
 | `B19001_011` | $150,000 to $199,999 |
 | `B19001_012` | $200,000 or more |
 
-No income midpoints are required — entropy depends only on the *shape* of the distribution (shares per bracket), not the dollar amounts.
+Dollar midpoints for each bracket are not used — the score responds only to the *share* of households in each bracket, not to the bracket's dollar value.
 
 #### Smoothing approach
 
@@ -288,8 +288,8 @@ The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8`
 | `destinations_raw` | numeric | WC center + amenity composite 0–1 (raw) |
 | `demographics_smoothed` | numeric | Estimated median HH income, $ (smoothed) |
 | `demographics_raw` | numeric | Estimated median HH income, $ (raw) |
-| `income_diversity_smoothed` | numeric | Income Diversity Index (Shannon entropy) 0–1 (smoothed) |
-| `income_diversity_raw` | numeric | Income Diversity Index (Shannon entropy) 0–1 (raw) |
+| `income_diversity_smoothed` | numeric | Income Diversity Index 0–1 (smoothed) |
+| `income_diversity_raw` | numeric | Income Diversity Index 0–1 (raw) |
 | `transit_dist_smoothed` | numeric | Distance to nearest frequent stop, miles (smoothed) |
 | `transit_dist_raw` | numeric | Distance to nearest frequent stop, miles (raw) |
 
