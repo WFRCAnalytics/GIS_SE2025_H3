@@ -23,8 +23,22 @@ WC_CENTER_WEIGHTS <- c(
   "Industrial District" = 0.0
 )
 
-# Income Diversity Index: B19001 income brackets (B19001_002 … B19001_012)
-INCOME_BINS <- sprintf("B19001_%03d", 2:12)
+# Income Diversity Index: B19001 income brackets (B19001_002 … B19001_017), all 16 brackets
+INCOME_BINS <- sprintf("B19001_%03d", 2:17)
+
+# Dollar lower bounds (in $k) for each of the 16 brackets — used only for reporting.
+# Last bracket ($200k+) has no upper bound; represented as NA.
+INCOME_BIN_LOWER_K <- c(0, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 100, 125, 150, 200)
+
+# Income tier mode for the 3-tier min/max diversity score:
+#   "regional_tertiles" — Low/Mid/High boundaries at regional 33rd/67th percentile (derived from data)
+#   "ami_single"        — set INCOME_TIER_BREAKS below to fixed bracket indices for one regional AMI
+#   "ami_county"        — set INCOME_TIER_BREAKS below to fixed bracket indices for county-level AMI
+INCOME_TIER_MODE <- "regional_tertiles"
+
+# Explicit bracket-index override (1–11) used when INCOME_TIER_MODE != "regional_tertiles".
+# Example: Low = bins 1–4 (<$25k), Mid = bins 5–8 ($25k–$50k), High = bins 9–11 ($50k–$75k)
+# INCOME_TIER_BREAKS <- c(low_max = 4L, mid_max = 8L)
 
 root <- here::here()
 
@@ -95,14 +109,17 @@ smooth_by_neighbors <- function(hex_ids, values, neighbor_index) {
   agg[hex_ids, , drop = TRUE]
 }
 
-# Shannon entropy diversity index from binned income counts, normalized to 0–1.
-# 0 = all households in one bracket (no diversity); 1 = perfectly even across all brackets.
-entropy_from_bins <- function(counts) {
+# 3-tier income diversity: min(low, mid, high) / max(low, mid, high).
+# tier_breaks is c(low_max, mid_max) — 1-based indices into counts splitting into Low/Mid/High.
+# Returns NA when total households = 0; returns 0 when any tier is absent.
+income_diversity_from_tiers <- function(counts, tier_breaks) {
   counts[is.na(counts) | counts < 0] <- 0
   total <- sum(counts)
   if (total == 0) return(NA_real_)
-  p <- counts[counts > 0] / total
-  -sum(p * log(p)) / log(length(counts))
+  low  <- sum(counts[seq_len(tier_breaks["low_max"])]) / total
+  mid  <- sum(counts[seq(tier_breaks["low_max"] + 1L, tier_breaks["mid_max"])]) / total
+  high <- sum(counts[seq(tier_breaks["mid_max"] + 1L, length(counts))]) / total
+  min(low, mid, high) / max(low, mid, high)
 }
 
 # 1 if any feature from features_sf touches the hex, 0 otherwise
@@ -219,6 +236,24 @@ if (!file.exists(bg_income_dist_path)) {
   sf::write_sf(bg_income_dist, bg_income_dist_path)
 } else {
   bg_income_dist <- sf::read_sf(bg_income_dist_path)
+}
+
+# Derive income tier breakpoints from regional HH distribution.
+# For "regional_tertiles": find the bin indices where the cumulative regional share
+# crosses 1/3 and 2/3, splitting all households into roughly equal thirds.
+# For other modes: use the manually-set INCOME_TIER_BREAKS from the parameters section.
+income_tier_breaks <- if (INCOME_TIER_MODE == "regional_tertiles") {
+  regional_totals <- sf::st_drop_geometry(bg_income_dist) |>
+    dplyr::summarise(dplyr::across(dplyr::all_of(INCOME_BINS), \(x) sum(x, na.rm = TRUE))) |>
+    unlist()
+  cum_pct <- cumsum(regional_totals) / sum(regional_totals)
+  n       <- length(cum_pct)
+  c(
+    low_max = max(1L, min(findInterval(1/3, cum_pct), n - 2L)),
+    mid_max = max(2L, min(findInterval(2/3, cum_pct), n - 1L))
+  )
+} else {
+  INCOME_TIER_BREAKS
 }
 
 # Transit: UTA GTFS
@@ -403,7 +438,7 @@ demographics_raw <- tibble::tibble(hex_id = hex_ids) |>
   dplyr::pull(estimate)
 demographics <- smooth_by_neighbors(hex_ids, demographics_raw, neighbor_index)
 
-## Income Diversity — Gini from B19001 household income distribution bins (L9)
+## Income Diversity — 3-tier min/max from B19001 household income distribution bins (L9)
 # Interpolate bin counts from BG polygons to hexes. extensive = TRUE because
 # these are household counts, not rates; the interpolation distributes each BG's
 # bin counts proportionally by the household surface within each hex.
@@ -430,15 +465,15 @@ bin_matrix <- sf::st_drop_geometry(hex_income_dist) |>
   dplyr::select(dplyr::all_of(INCOME_BINS)) |>
   as.matrix()
 
-income_diversity_raw <- apply(bin_matrix, 1L, entropy_from_bins)
+income_diversity_raw <- apply(bin_matrix, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
-# Smooth each bin independently, then compute entropy from smoothed distribution
+# Smooth each bin independently, then compute diversity from smoothed distribution
 bin_smoothed <- vapply(
   seq_len(ncol(bin_matrix)),
   function(i) smooth_by_neighbors(hex_ids, bin_matrix[, i], neighbor_index),
   numeric(length(hex_ids))
 )
-income_diversity <- apply(bin_smoothed, 1L, entropy_from_bins)
+income_diversity <- apply(bin_smoothed, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
 ## Distance to Transit
 centroids        <- sf::st_centroid(sf::st_geometry(se_hex))
@@ -605,9 +640,9 @@ demographics_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
   dplyr::pull(estimate)
 demographics_l8 <- smooth_by_neighbors(h8_ids, demographics_raw_l8, neighbor_index_l8)
 
-## Income Diversity (L8) — aggregate L9 bin counts to L8, then compute Gini
+## Income Diversity (L8) — aggregate L9 bin counts to L8, then compute 3-tier diversity
 # Sum each bin column across L9 children into their L8 parent, then apply the
-# same smooth-bins-first → compute-Gini approach used at L9.
+# same smooth-bins-first approach used at L9.
 bin_df_l8 <- as.data.frame(bin_matrix)
 bin_df_l8$h8_id <- h8_ids_vec
 bin_df_l8 <- bin_df_l8 |>
@@ -615,14 +650,14 @@ bin_df_l8 <- bin_df_l8 |>
   dplyr::summarise(dplyr::across(dplyr::all_of(INCOME_BINS), sum), .groups = "drop")
 bin_matrix_l8 <- bin_df_l8[match(h8_ids, bin_df_l8$h8_id), INCOME_BINS] |> as.matrix()
 
-income_diversity_raw_l8 <- apply(bin_matrix_l8, 1L, entropy_from_bins)
+income_diversity_raw_l8 <- apply(bin_matrix_l8, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
 bin_smoothed_l8 <- vapply(
   seq_len(ncol(bin_matrix_l8)),
   function(i) smooth_by_neighbors(h8_ids, bin_matrix_l8[, i], neighbor_index_l8),
   numeric(length(h8_ids))
 )
-income_diversity_l8 <- apply(bin_smoothed_l8, 1L, entropy_from_bins)
+income_diversity_l8 <- apply(bin_smoothed_l8, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
 ## Distance to Transit (L8)
 centroids_l8        <- sf::st_centroid(sf::st_geometry(se_l8))
@@ -735,6 +770,30 @@ map_raw <- mapgl::maplibre(style = mapgl::carto_style("positron")) |>
   )
 
 mapgl::compare(map_smth, map_raw, mode = "swipe", mousemove = FALSE)
+
+# ── Distribution Check: Income Diversity Tiers ────────────────────────────────
+
+low_max <- income_tier_breaks["low_max"]
+mid_max <- income_tier_breaks["mid_max"]
+n_bins  <- length(INCOME_BINS)
+
+cat(sprintf(
+  "Income tier breakpoints (%s):\n  Low:  bins 1–%d  ($0k – $%dk)\n  Mid:  bins %d–%d  ($%dk – $%dk)\n  High: bins %d–%d  ($%dk+)\n\n",
+  INCOME_TIER_MODE,
+  low_max,  INCOME_BIN_LOWER_K[low_max + 1L],
+  low_max + 1L, mid_max, INCOME_BIN_LOWER_K[low_max + 1L], INCOME_BIN_LOWER_K[mid_max + 1L],
+  mid_max + 1L, n_bins,  INCOME_BIN_LOWER_K[mid_max + 1L]
+))
+
+cat("L9 income diversity (smoothed):\n"); print(summary(se_hex$income_diversity))
+cat("\nL8 income diversity (smoothed):\n"); print(summary(se_l8$income_diversity))
+
+op <- par(mfrow = c(2L, 2L), mar = c(4, 4, 2, 1))
+hist(se_hex$income_diversity_raw, breaks = 30, main = "L9 raw",      xlab = "Score", xlim = c(0, 1), col = "#4575b4", border = "white")
+hist(se_hex$income_diversity,     breaks = 30, main = "L9 smoothed", xlab = "Score", xlim = c(0, 1), col = "#4575b4", border = "white")
+hist(se_l8$income_diversity_raw,  breaks = 30, main = "L8 raw",      xlab = "Score", xlim = c(0, 1), col = "#d73027", border = "white")
+hist(se_l8$income_diversity,      breaks = 30, main = "L8 smoothed", xlab = "Score", xlim = c(0, 1), col = "#d73027", border = "white")
+par(op)
 
 # ── Export ─────────────────────────────────────────────────────────────────────
 
