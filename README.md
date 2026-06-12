@@ -11,7 +11,7 @@ Calculates six **D variables** — a standard framework for measuring urban form
 | 3 | **Design** | Street Network Design | How well-connected the street grid is; more intersections = more route choices |
 | 4 | **Destinations** | Destination Accessibility | Proximity to activity centers and everyday amenities (composite + 7 sub-components) |
 | 5 | **Demographics** | Socioeconomic Status | Median household income as an equity lens |
-| 5b | **Income Diversity** | Income Diversity Index | How evenly households are spread across all income levels; 0 = entire neighborhood in one income tier, 1 = equal representation across all tiers |
+| 5b | **Income Diversity** | Income Diversity Index | Whether households from lower-, middle-, and higher-income groups all coexist; 0 = only one income group present, 1 = all three groups equally represented |
 | 6 | **Distance to Transit** | Transit Access | Distance to the nearest frequent-service transit stop |
 
 The D-variable framework originates from Cervero & Kockelman (1997) and has been refined by Ewing & Cervero (2010). These six dimensions collectively describe the built environment features most strongly associated with mode choice and vehicle miles traveled.
@@ -120,64 +120,68 @@ ACS 5-year median household income is interpolated from block-group polygons to 
 
 ### 5b. Income Diversity Index
 
-**What it captures:** Whether households from many different income levels coexist within a neighborhood. A high score means income is spread across many brackets — the kind of place where people at very different income levels can all find housing. A low score means the neighborhood is dominated by a single income tier, whether uniformly wealthy or uniformly low-income.
+**What it captures:** Whether households from lower-, middle-, and higher-income groups all coexist within the same neighborhood. A high score means the area has a genuine mix — people at very different income levels can all find housing there. A low score means one income group dominates, whether the neighborhood is uniformly high-income or uniformly low-income.
 
-This framing deliberately avoids the problem of treating high median income as "bad." A high-income neighborhood where everyone earns similarly scores *low* on this index — not because incomes are high, but because there is no income mix. The path to a better score is creating places with housing accessible to a range of incomes, not reducing anyone's income.
+This framing deliberately avoids treating high median income as "bad." A wealthy neighborhood where every household earns similarly scores *low* here — not because incomes are high, but because there is no mix. The path to a better score is creating places with housing accessible across a range of incomes, not reducing anyone's income.
 
 Reported as part of the Demographics dimension. The column is named `income_diversity` throughout.
 
 #### How the score works
 
-Census data divides household incomes into **11 brackets** (from "less than $10,000/year" up to "$200,000+/year"). The score asks one question: *how evenly are the neighborhood's households spread across those 11 brackets?*
+Rather than measuring spread across all 16 individual ACS income brackets (which produces scores that cluster near the top and are hard to interpret), the index groups households into **three income tiers** defined by the actual regional income distribution:
 
-- **Score near 0** — nearly all households fall into the same one or two brackets. The neighborhood is income-homogeneous, regardless of whether those brackets are high or low. A luxury enclave where every household earns over $200k and a distressed area where every household earns under $25k both score near zero.
-- **Score near 1** — households are spread across many brackets in roughly equal shares. People at very different income levels can all find housing there.
+| Tier | Income range | How defined |
+|------|-------------|-------------|
+| **Lower** | Less than $60,000/yr | Bottom third of regional households |
+| **Middle** | $60,000 – $124,999/yr | Middle third of regional households |
+| **Higher** | $125,000+/yr | Top third of regional households |
 
-| Score | What it means in practice |
+These boundaries come from the data itself: the ACS household counts for the entire WFRC/MAG region are added up, and the lines are drawn where the cumulative total crosses one-third and two-thirds. This means each tier represents roughly the same number of households region-wide, and the boundaries reflect local economic reality rather than an arbitrary national threshold.
+
+The score then asks: **does this neighborhood have representation from all three groups?**
+
+```
+score = min(lower_share, middle_share, higher_share)
+      / max(lower_share, middle_share, higher_share)
+```
+
+- **Score = 1.0** — all three groups are equally represented. The neighborhood is a true cross-section of the region.
+- **Score = 0.5** — the smallest group has about half the share of the largest group. Some mix, but one tier dominates.
+- **Score = 0** — at least one group is entirely absent. The neighborhood is the exclusive domain of one or two income groups.
+
+| Score | What it means in plain language |
 |---|---|
-| **0** | Entire neighborhood in one income bracket |
-| **0.5** | A few brackets account for most households |
-| **1.0** | Equal share of households in all 11 brackets |
+| **1.0** | Lower-, middle-, and higher-income households are equally represented |
+| **0.5** | A reasonable mix, but one income tier has roughly twice the share of another |
+| **0** | One income group is completely absent — no housing accessible to them |
 
-**What makes this different from median income:** Median income tells you *where* a neighborhood sits on the income ladder. This score tells you *how wide a range of incomes* is represented. A neighborhood with a high median income can still score near 1 if it has a genuine mix of households — and vice versa.
-
-**What makes this different from the Gini coefficient:** The Gini measures income *inequality* (the gap between the richest and poorest residents). This score measures income *variety* (how many rungs of the ladder are occupied). A neighborhood where half the households earn $30k and half earn $130k could score high on inequality but also high on diversity — because both income levels are present. The Gini is a better tool for understanding wealth gaps within a community; this index is a better tool for understanding whether a community has housing accessible to people at multiple income levels.
-
-> **Technical note (for analysts):** The score is computed as normalized Shannon entropy: `−Σᵢ (pᵢ × ln pᵢ) / ln(11)`, where *pᵢ* is the share of households in bracket *i*. Division by ln(11) rescales the result to [0, 1]. This formula is agnostic to the dollar values of the brackets — it responds only to the shape of the distribution.
+**What makes this different from median income:** Median income tells you *where* a neighborhood sits on the income ladder — high or low. This score tells you *how wide a range* is represented. A high-income area can still score near 1.0 if it has genuine income diversity, and a moderate-income area can score near 0 if all households earn nearly the same amount.
 
 #### ACS data source
 
-**Table:** `B19001` — Household Income in the Past 12 Months (in inflation-adjusted dollars)
-**Geography:** Block group, state of Utah (9-county WFRC/MAG study area)
-**Vintage:** 2019–2023 ACS 5-year estimates
+**Table:** `B19001` — Household Income in the Past 12 Months (in inflation-adjusted dollars)  
+**Geography:** Block group, state of Utah (9-county WFRC/MAG study area)  
+**Vintage:** 2019–2023 ACS 5-year estimates  
+**Brackets used:** All 16 (`B19001_002` through `B19001_017`, from "Less than $10,000" to "$200,000 or more")  
 **Cache:** `_data/remote/demographics/bg_income_dist.gpkg`
 
-The table provides **household counts** (not percentages) for 11 income brackets:
+The 16 ACS brackets are narrower at lower incomes (every $5,000) and wider at higher incomes (up to $50,000 wide). This is why the Lower tier spans more individual ACS brackets than Middle or Higher — the tier boundaries are drawn on household counts, not on bracket counts, so each tier still represents an equal share of regional households.
 
-| ACS variable | Income bracket |
-|---|---|
-| `B19001_002` | Less than $10,000 |
-| `B19001_003` | $10,000 to $14,999 |
-| `B19001_004` | $15,000 to $24,999 |
-| `B19001_005` | $25,000 to $34,999 |
-| `B19001_006` | $35,000 to $49,999 |
-| `B19001_007` | $50,000 to $74,999 |
-| `B19001_008` | $75,000 to $99,999 |
-| `B19001_009` | $100,000 to $124,999 |
-| `B19001_010` | $125,000 to $149,999 |
-| `B19001_011` | $150,000 to $199,999 |
-| `B19001_012` | $200,000 or more |
+#### Changing the tier boundaries
 
-Dollar midpoints for each bracket are not used — the score responds only to the *share* of households in each bracket, not to the bracket's dollar value.
+Tier boundaries are controlled by `INCOME_TIER_MODE` at the top of `index.R`:
+
+- **`"regional_tertiles"`** (default) — boundaries are derived automatically from the data as described above. They will update naturally if the ACS vintage changes.
+- **`"ami_single"` or `"ami_county"`** — set `INCOME_TIER_BREAKS <- c(low_max = X, mid_max = Y)` to fixed bracket indices to use a regional or county-level Area Median Income definition instead.
 
 #### Smoothing approach
 
 Follows the project's standard principle of smoothing **inputs before applying the formula**:
 
-1. Interpolate all 11 B19001 bin counts from block-group polygons to H3 hexes via `tidycensus::interpolate_pw()` (`extensive = TRUE` — counts, not rates), using SE 2025 household counts as the population-weight surface.
-2. For the **smoothed** value: apply `smooth_by_neighbors` to each of the 11 bin counts independently, then compute entropy from the smoothed distribution. This reflects the income mix of the surrounding neighborhood, not just an average of neighboring entropy scores.
-3. For the **raw** value: compute entropy directly from the interpolated (unsmoothed) bin counts for that hex alone.
-4. For **L8**: aggregate the L9 bin counts to L8 by summing each bin across all ~7 L9 children, then apply the same smooth→entropy pattern.
+1. Interpolate all 16 B19001 bin counts from block-group polygons to H3 hexes via `tidycensus::interpolate_pw()` (`extensive = TRUE` — counts, not rates), using SE 2025 household counts as the population-weight surface.
+2. For the **smoothed** value: apply `smooth_by_neighbors` to each of the 16 bin counts independently, then compute the tier score from the smoothed distribution. This reflects the income mix of the surrounding neighborhood, not just an average of neighboring scores.
+3. For the **raw** value: compute the tier score directly from the interpolated (unsmoothed) bin counts for that hex alone.
+4. For **L8**: aggregate the L9 bin counts to L8 by summing each bin across all ~7 L9 children, then apply the same smooth→score pattern.
 
 Hexes with no households receive `NA`.
 
@@ -204,7 +208,8 @@ RING1_WEIGHT  <- 0.3
 RING2_WEIGHT  <- 0.2
 RING3_WEIGHT  <- 0.1
 
-INCOME_BINS <- sprintf("B19001_%03d", 2:12)   # B19001_002 … B19001_012
+INCOME_BINS      <- sprintf("B19001_%03d", 2:17)  # B19001_002 … B19001_017 (all 16 brackets)
+INCOME_TIER_MODE <- "regional_tertiles"           # or "ami_single" / "ami_county"
 
 WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
   "Metropolitan Center" = 1.0,
@@ -227,7 +232,7 @@ WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
 | Parks (local + WFRC) | — | ArcGIS REST | `_data/remote/destinations/` |
 | Emergency Medical Services | — | ArcGIS REST | `_data/remote/destinations/ems_stations.gpkg` |
 | ACS median HH income | `B19013_001` | tidycensus | `_data/remote/demographics/bg_income.gpkg` |
-| ACS income distribution (11 bins) | `B19001_002`–`B19001_012` | tidycensus | `_data/remote/demographics/bg_income_dist.gpkg` |
+| ACS income distribution (16 brackets) | `B19001_002`–`B19001_017` | tidycensus | `_data/remote/demographics/bg_income_dist.gpkg` |
 | 2020 Census HH weights | `H1_002N` | tidycensus | `_data/remote/demographics/blocks_2020_hh.gpkg` |
 | UTA GTFS | — | download.file | `_data/remote/transit/` |
 | Utah county boundaries | — | tigris | `_data/remote/boundaries/` |
@@ -263,7 +268,7 @@ tidycensus::census_api_key("YOUR_KEY", install = TRUE)
 
 ## Running
 
-Open the project in RStudio and source `index.R`. The script will:
+Open the project and source `index.R` (RStudio, Positron, or `Rscript index.R` from a terminal). The script will:
 
 1. Fetch and cache all remote data (first run only — subsequent runs load from cache)
 2. Calculate all six D variables, seven Destinations sub-components, and Income Diversity Index at both H3 level 8 and level 9
