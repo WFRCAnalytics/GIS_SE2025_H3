@@ -47,7 +47,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0 0 12px',
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
@@ -80,7 +80,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     outline: 'none',
     padding: '8px 20px 8px 0',
-    fontSize: 13,
+    fontSize: 'var(--fs-13)',
     fontWeight: 600,
     color: 'var(--color-text)',
     cursor: 'pointer',

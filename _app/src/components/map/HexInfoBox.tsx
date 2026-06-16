@@ -111,7 +111,7 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: 0,
   },
   title: {
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -119,7 +119,7 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1,
   },
   hexId: {
-    fontSize: 9,
+    fontSize: 'var(--fs-9)',
     color: 'var(--color-text-disabled)',
     fontFamily: 'monospace',
     overflow: 'hidden',
@@ -133,7 +133,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   placeholder: {
     padding: '16px 12px',
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     color: 'var(--color-text-disabled)',
     textAlign: 'center',
     lineHeight: 1.5,
@@ -149,14 +149,14 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 2,
   },
   colHeadLabel: {
-    fontSize: 9,
+    fontSize: 'var(--fs-9)',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
     textAlign: 'right',
   },
   groupHeader: {
-    fontSize: 9,
+    fontSize: 'var(--fs-9)',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -175,7 +175,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderLeft: '2px solid var(--color-primary)',
   },
   varLabel: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     fontWeight: 600,
     color: 'var(--color-text)',
     letterSpacing: '0.02em',
@@ -184,7 +184,7 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   val: {
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     fontWeight: 500,
     fontVariantNumeric: 'tabular-nums',
     textAlign: 'right',

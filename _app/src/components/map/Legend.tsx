@@ -22,7 +22,7 @@ export function Legend({ variable, level, colorScale }: LegendProps) {
           <div style={styles.label}>{cfg.label}</div>
           <div style={styles.badge}>{cfg.single ? level.toUpperCase() : `${level.toUpperCase()} · Smoothed`}</div>
         </div>
-        <div style={{ color: 'var(--color-text-disabled)', fontSize: 11 }}>Not developed or Not applicable</div>
+        <div style={{ color: 'var(--color-text-disabled)', fontSize: 'var(--fs-11)' }}>Not developed or Not applicable</div>
       </div>
     );
   }
@@ -114,14 +114,14 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 4,
   },
   label: {
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     fontWeight: 600,
     color: 'var(--color-text-secondary)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
   },
   badge: {
-    fontSize: 9,
+    fontSize: 'var(--fs-9)',
     fontWeight: 600,
     color: 'var(--color-text-disabled)',
     textTransform: 'uppercase',
@@ -138,17 +138,17 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 4,
   },
   hoverCount: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     fontWeight: 600,
     color: 'var(--color-text)',
     fontVariantNumeric: 'tabular-nums',
   },
   hoverSep: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     color: 'var(--color-text-disabled)',
   },
   hoverRange: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     color: 'var(--color-text-secondary)',
     fontVariantNumeric: 'tabular-nums',
   },
@@ -175,7 +175,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tick: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 'var(--fs-9)',
     color: 'var(--color-text-secondary)',
     textAlign: 'center',
     lineHeight: 1.2,
@@ -185,7 +185,7 @@ const styles: Record<string, React.CSSProperties> = {
     textOverflow: 'ellipsis',
   },
   unit: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     color: 'var(--color-text-disabled)',
     marginTop: 4,
   },
@@ -203,7 +203,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#CCCCCC',
   },
   naLabel: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     color: 'var(--color-text-secondary)',
     lineHeight: 1.3,
   },

@@ -75,13 +75,13 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto 14px',
   },
   title: {
-    fontSize: 15,
+    fontSize: 'var(--fs-15)',
     fontWeight: 600,
     color: '#1A2B3C',
     marginBottom: 6,
   },
   message: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     color: '#5A6A7A',
     lineHeight: 1.5,
   },

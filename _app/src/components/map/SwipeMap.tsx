@@ -258,7 +258,7 @@ const styles: Record<string, React.CSSProperties> = {
     backdropFilter: 'blur(4px)',
     padding: '4px 10px',
     borderRadius: 4,
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     fontWeight: 600,
     color: '#1A2B3C',
     zIndex: 5,

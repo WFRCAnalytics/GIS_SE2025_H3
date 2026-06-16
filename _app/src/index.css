@@ -26,6 +26,16 @@
   --font-size-sm:   12px;
   --font-size-base: 14px;
   --font-size-md:   15px;
+
+  /* UI text scale — single knob. Bump toward ~1.35 for larger, drop to 1 for original. */
+  --ui-scale: 1.2;
+  --fs-9:  calc(9px  * var(--ui-scale));
+  --fs-10: calc(10px * var(--ui-scale));
+  --fs-11: calc(11px * var(--ui-scale));
+  --fs-12: calc(12px * var(--ui-scale));
+  --fs-13: calc(13px * var(--ui-scale));
+  --fs-14: calc(14px * var(--ui-scale));
+  --fs-15: calc(15px * var(--ui-scale));
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */

@@ -71,7 +71,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   logoText: {
-    fontSize: 13,
+    fontSize: 'var(--fs-13)',
     fontWeight: 800,
     color: 'var(--color-primary)',
     letterSpacing: '0.08em',
@@ -83,14 +83,14 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   appTitle: {
-    fontSize: 13,
+    fontSize: 'var(--fs-13)',
     fontWeight: 600,
     color: 'white',
     lineHeight: 1.2,
     whiteSpace: 'nowrap',
   },
   appSub: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     color: 'rgba(255,255,255,0.7)',
     whiteSpace: 'nowrap',
   },
@@ -104,16 +104,16 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   chipLabel: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     fontWeight: 600,
     color: 'white',
   },
   chipSep: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     color: 'rgba(255,255,255,0.5)',
   },
   chipSub: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     color: 'rgba(255,255,255,0.8)',
   },
   ghLink: {
@@ -126,7 +126,7 @@ const styles: Record<string, React.CSSProperties> = {
     textDecoration: 'none',
   },
   ghLinkText: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     fontWeight: 500,
     whiteSpace: 'nowrap' as const,
   },

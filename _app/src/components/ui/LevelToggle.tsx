@@ -51,7 +51,7 @@ const styles: Record<string, React.CSSProperties> = {
     paddingBottom: 12,
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
@@ -73,7 +73,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: 1,
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     fontWeight: 500,
     color: 'var(--color-text-secondary)',
     background: 'transparent',
@@ -93,7 +93,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
   btnDetail: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     opacity: 0.75,
   },
 };

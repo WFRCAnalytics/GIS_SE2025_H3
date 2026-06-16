@@ -1,6 +1,8 @@
+import type { ColorScale } from '../../lib/colorScale';
 import type { DVariable, HexLevel, LevelMode } from '../../types';
 import { VariableSelector } from '../ui/VariableSelector';
 import { LevelToggle } from '../ui/LevelToggle';
+import { Legend } from '../map/Legend';
 import { VARIABLE_CONFIGS } from '../../constants';
 
 interface SidebarProps {
@@ -11,6 +13,7 @@ interface SidebarProps {
   disabled: boolean;
   roadsAbove: boolean;
   hexOpacity: number;
+  colorScale: ColorScale | null;
   onVariableChange: (v: DVariable) => void;
   onLevelModeChange: (mode: LevelMode) => void;
   onRoadsAboveChange: (v: boolean) => void;
@@ -19,7 +22,7 @@ interface SidebarProps {
 
 export function Sidebar({
   width, variable, level, levelMode,
-  disabled, roadsAbove, hexOpacity, onVariableChange, onLevelModeChange, onRoadsAboveChange, onOpacityChange,
+  disabled, roadsAbove, hexOpacity, colorScale, onVariableChange, onLevelModeChange, onRoadsAboveChange, onOpacityChange,
 }: SidebarProps) {
   const cfg = VARIABLE_CONFIGS[variable];
   return (
@@ -33,6 +36,13 @@ export function Sidebar({
 
       {/* Description */}
       <div style={styles.desc}>{cfg.description}</div>
+
+      <div style={styles.sep} />
+
+      {/* Legend — describes the color encoding for the active variable */}
+      <div style={styles.legendSection}>
+        <Legend variable={variable} level={level} colorScale={colorScale} />
+      </div>
 
       <div style={styles.sep} />
 
@@ -122,13 +132,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   desc: {
     padding: '0 14px 10px',
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     color: 'var(--color-text-secondary)',
     lineHeight: 1.5,
   },
+  legendSection: {
+    padding: '0 14px',
+    flexShrink: 0,
+  },
   hint: {
     padding: '8px 14px',
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     color: 'var(--color-text-secondary)',
     display: 'flex',
     alignItems: 'center',
@@ -138,7 +152,7 @@ const styles: Record<string, React.CSSProperties> = {
   footer: {
     marginTop: 'auto',
     padding: '10px 14px',
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     color: 'var(--color-text-disabled)',
     lineHeight: 1.6,
     borderTop: '1px solid var(--color-border)',
@@ -150,14 +164,14 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 6,
   },
   sliderLabel: {
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     fontWeight: 600,
     color: 'var(--color-text-secondary)',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.04em',
   },
   sliderValue: {
-    fontSize: 11,
+    fontSize: 'var(--fs-11)',
     fontWeight: 600,
     color: 'var(--color-primary)',
     fontVariantNumeric: 'tabular-nums',
@@ -180,12 +194,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   roadToggleLabel: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     fontWeight: 500,
     color: 'var(--color-text)',
   },
   roadToggleSub: {
-    fontSize: 10,
+    fontSize: 'var(--fs-10)',
     color: 'var(--color-text-disabled)',
     marginTop: 1,
   },

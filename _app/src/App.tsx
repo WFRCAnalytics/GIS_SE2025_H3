@@ -8,9 +8,9 @@ import { useData } from './hooks/useData';
 import { AUTO_LEVEL_ZOOM, DEFAULT_ZOOM, VARIABLE_CONFIGS } from './constants';
 import type { DVariable, HexLevel, LevelMode, PopupData } from './types';
 
-const PANEL_MIN = 160;
-const PANEL_MAX = 480;
-const PANEL_DEFAULT = 280;
+const PANEL_MIN = 180;
+const PANEL_MAX = 560;
+const PANEL_DEFAULT = 340;
 
 function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
   const [hovered, setHovered] = useState(false);
@@ -140,6 +140,7 @@ export default function App() {
           disabled={compositeStatus === 'initializing' || compositeStatus === 'refreshing'}
           roadsAbove={roadsAbove}
           hexOpacity={hexOpacity}
+          colorScale={level === 'l8' ? dataL8.colorScale : dataL9.colorScale}
           onVariableChange={setVariable}
           onLevelModeChange={handleLevelModeChange}
           onRoadsAboveChange={setRoadsAbove}
@@ -171,8 +172,6 @@ export default function App() {
         <RightPanel
           width={rightWidth}
           variable={variable}
-          level={level}
-          colorScale={level === 'l8' ? dataL8.colorScale : dataL9.colorScale}
           hoveredHex={hoveredHex}
         />
       </div>
@@ -214,17 +213,17 @@ const styles: Record<string, React.CSSProperties> = {
     pointerEvents: 'none' as const,
   },
   mapTitleLabel: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     fontWeight: 700,
     color: 'var(--color-primary)',
     letterSpacing: '0.01em',
   },
   mapTitleSep: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     color: 'var(--color-text-disabled)',
   },
   mapTitleFull: {
-    fontSize: 12,
+    fontSize: 'var(--fs-12)',
     fontWeight: 500,
     color: 'var(--color-text)',
   },
