@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import type { PopupData, DVariable } from '../../types';
-import { D_VARIABLES, VARIABLE_CONFIGS } from '../../constants';
+import { VARIABLE_GROUPS, VARIABLE_CONFIGS } from '../../constants';
 
 interface HexInfoBoxProps {
   data: PopupData | null;
@@ -46,24 +46,38 @@ export function HexInfoBox({ data, activeVariable, panelWidth = 280 }: HexInfoBo
                 <span style={{ ...styles.colHeadLabel, color: 'var(--color-text-secondary)' }}>Raw</span>
               </div>
 
-              {/* Variable rows */}
-              {D_VARIABLES.map(varId => {
-                const cfg    = VARIABLE_CONFIGS[varId];
-                const smooth = data[varId as keyof PopupData] as number | null;
-                const raw    = data[`${varId}_raw` as keyof PopupData] as number | null;
-                const isActive = varId === activeVariable;
-                return (
-                  <div key={varId} style={{ ...styles.row, gridTemplateColumns: rowCols, ...(isActive ? styles.rowActive : {}) }}>
-                    <div style={styles.varLabel}>{cfg.label}</div>
-                    <div style={{ ...styles.val, color: 'var(--color-primary)' }}>
-                      {smooth == null ? '—' : cfg.formatValue(smooth)}
-                    </div>
-                    <div style={{ ...styles.val, color: 'var(--color-text-secondary)' }}>
-                      {raw == null ? '—' : cfg.formatValue(raw)}
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Variable rows, grouped */}
+              {VARIABLE_GROUPS.map(group => (
+                <Fragment key={group.label}>
+                  <div style={styles.groupHeader}>{group.label}</div>
+                  {group.variables.map(varId => {
+                    const cfg    = VARIABLE_CONFIGS[varId];
+                    const value  = data[varId as keyof PopupData] as number | null;
+                    const raw    = data[`${varId}_raw` as keyof PopupData] as number | null;
+                    const isActive = varId === activeVariable;
+                    return (
+                      <div key={varId} style={{ ...styles.row, gridTemplateColumns: rowCols, ...(isActive ? styles.rowActive : {}) }}>
+                        <div style={styles.varLabel}>{cfg.label}</div>
+                        {cfg.single ? (
+                          // Single value — span both value columns
+                          <div style={{ ...styles.val, gridColumn: 'span 2', color: 'var(--color-text)' }}>
+                            {value == null ? '—' : cfg.formatValue(value)}
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ ...styles.val, color: 'var(--color-primary)' }}>
+                              {value == null ? '—' : cfg.formatValue(value)}
+                            </div>
+                            <div style={{ ...styles.val, color: 'var(--color-text-secondary)' }}>
+                              {raw == null ? '—' : cfg.formatValue(raw)}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </Fragment>
+              ))}
             </div>
           )}
         </div>
@@ -140,6 +154,14 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
     textAlign: 'right',
+  },
+  groupHeader: {
+    fontSize: 9,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    color: 'var(--color-text-disabled)',
+    padding: '8px 12px 2px',
   },
   row: {
     display: 'grid',

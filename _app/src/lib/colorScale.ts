@@ -65,12 +65,15 @@ export function buildColorScale(variable: DVariable, breakData: BreakData): Colo
 
   const counts: number[] = Array.isArray(breakData.counts) ? breakData.counts : [];
 
+  // Raw SE counts have no _raw column — both swipe sides read the same field.
+  const rawProp = cfg.single ? variable : `${variable}_raw`;
+
   return {
     stops,
     counts,
     domainMax: breakData.max,
     smoothedExpression: buildExpr(variable),
-    rawExpression:      buildExpr(`${variable}_raw`),
+    rawExpression:      buildExpr(rawProp),
     getColor,
   };
 }

@@ -17,6 +17,8 @@ interface SwipeMapProps {
   colorScaleL9: ColorScale | null;
   roadsAbove?: boolean;
   opacity?: number;
+  // false for raw SE counts: no smoothed/raw pair, so collapse to one map
+  compare?: boolean;
   onHexHover?: (props: Record<string, unknown>) => void;
   onZoomChange?: (zoom: number) => void;
 }
@@ -29,6 +31,7 @@ export function SwipeMap({
   sourceUrlL8, colorScaleL8,
   sourceUrlL9, colorScaleL9,
   roadsAbove = true, opacity,
+  compare = true,
   onHexHover, onZoomChange,
 }: SwipeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +120,8 @@ export function SwipeMap({
     ? handleHexHover : undefined;
 
   const clipPx = getClipPx();
+  // When not comparing, clip the entire right pane away so only the left map shows.
+  const rightClip = compare ? `inset(0 0 0 ${clipPx}px)` : 'inset(0 0 0 100%)';
 
   return (
     <div ref={containerRef} style={styles.container}>
@@ -153,10 +158,10 @@ export function SwipeMap({
         )}
       </div>
 
-      {/* Right map: raw — clipped to the right of the divider */}
-      <div style={{ ...styles.mapBase, clipPath: `inset(0 0 0 ${clipPx}px)` }}>
+      {/* Right map: raw — clipped to the right of the divider (fully hidden when not comparing) */}
+      <div style={{ ...styles.mapBase, clipPath: rightClip }}>
         <MapPane mapRef={rightRef} onReady={() => setRightReady(true)} />
-        {rightReady && levelMode !== 'l9' && (
+        {compare && rightReady && levelMode !== 'l9' && (
           <HexLayer
             key={`right-l8-${levelMode}`}
             map={rightRef.current}
@@ -169,7 +174,7 @@ export function SwipeMap({
             onHexHover={l8Hover}
           />
         )}
-        {rightReady && levelMode !== 'l8' && (
+        {compare && rightReady && levelMode !== 'l8' && (
           <HexLayer
             key={`right-l9-${levelMode}`}
             map={rightRef.current}
@@ -184,24 +189,28 @@ export function SwipeMap({
         )}
       </div>
 
-      {/* Draggable divider */}
-      <div
-        ref={dividerRef}
-        style={{ ...styles.divider, left: clipPx }}
-        onMouseDown={e => { e.preventDefault(); startDrag(e.clientX); }}
-        role="separator"
-        aria-label="Drag to compare smoothed and raw"
-      >
-        <div style={styles.dividerHandle}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M7 4L3 10L7 16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M13 4L17 10L13 16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-      </div>
+      {/* Draggable divider + side labels — only when comparing smoothed vs raw */}
+      {compare && (
+        <>
+          <div
+            ref={dividerRef}
+            style={{ ...styles.divider, left: clipPx }}
+            onMouseDown={e => { e.preventDefault(); startDrag(e.clientX); }}
+            role="separator"
+            aria-label="Drag to compare smoothed and raw"
+          >
+            <div style={styles.dividerHandle}>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M7 4L3 10L7 16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M13 4L17 10L13 16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </div>
 
-      <div style={{ ...styles.label, left: 12 }}>Smoothed</div>
-      <div style={{ ...styles.label, right: 12 }}>Raw (Unsmoothed)</div>
+          <div style={{ ...styles.label, left: 12 }}>Smoothed</div>
+          <div style={{ ...styles.label, right: 12 }}>Raw (Unsmoothed)</div>
+        </>
+      )}
     </div>
   );
 }

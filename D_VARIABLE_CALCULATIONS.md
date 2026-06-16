@@ -403,21 +403,28 @@ Color classification for the web app uses **Fisher** (Fisher-Jenks natural break
 
 Breaks are computed pooled across both L8 and L9 values for each variable, stored in `_app/public/metadata.json`, and consumed by the app's `useData` hook. The number of break classes adapts to the number of unique quantile values in the variable (some variables in sparse areas have fewer than 9 distinct breaks).
 
-Variables included in `metadata.json` (14 total):
+Variables included in `metadata.json` (29 total) — the 14 D variables plus the 15 raw SE counts:
 ```
 density, diversity, design,
 destinations, destinations_center, destinations_health, destinations_school,
 destinations_grocery, destinations_cityhall, destinations_park, destinations_ems,
-demographics, income_diversity, transit_dist
+demographics, income_diversity, transit_dist,
+hhpop, households, residential_units, total_jobs,
+industrial_jobs, retail_jobs, office_jobs,
+jobs_accom_food, jobs_gov_edu, jobs_health, jobs_manuf,
+jobs_office, jobs_other, jobs_retail, jobs_wholesale
 ```
+D variables pool their smoothed + raw values onto one Fisher scale (so both swipe sides share a scale); raw SE counts are a single series, so their scale and histogram come from one column.
 
 ---
 
 ## Output Assembly
 
-Two GDB layers are produced — `{GDB_NAME}_l9` (H3 level-9, ~66 k hexes) and `{GDB_NAME}_l8` (H3 level-8, ~9.5 k hexes).
+Two GDB layers are produced — `{GDB_NAME}_l9` (H3 level-9, ~33 k hexes) and `{GDB_NAME}_l8` (H3 level-8, ~5 k hexes).
 
-Each layer contains all original SE columns plus:
+**L8 aggregation rule:** raw SE counts (`households`, `hhpop`, `residential_units`, `total_jobs`, and every job sector) are aggregated to L8 as a **plain sum of each cell's L9 children** — no neighbor weighting — so regional totals match exactly at both resolutions (`se_count_cols` in `index.R`). The D variables, by contrast, are recomputed on the L8 grid with neighbor-weighted smoothing rather than summed from L9.
+
+Each layer contains all original SE columns (the raw counts above) plus:
 
 | Column pattern | Description |
 |---|---|
@@ -440,7 +447,7 @@ Each layer contains all original SE columns plus:
 
 ## PMTiles & Metadata Export
 
-PMTiles are generated via the `freestiler` R package directly from the sf objects. The `metadata.json` file is written at the end of `index.R` with pre-computed Fisher break values for all 14 variables at both L8 and L9. Re-running `index.R` regenerates both PMTiles and metadata atomically.
+PMTiles are generated via the `freestiler` R package directly from the sf objects. The `metadata.json` file is written at the end of `index.R` with pre-computed Fisher break values for all 29 variables at both L8 and L9. Re-running `index.R` regenerates both PMTiles and metadata atomically.
 
 ---
 

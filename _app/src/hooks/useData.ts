@@ -37,7 +37,11 @@ export function useData(variable: DVariable, level: HexLevel): DataResult {
     loadMetadata()
       .then(meta => {
         if (cancelled) return;
-        const scale = buildColorScale(variable, meta[level][variable]);
+        const breakData = meta[level][variable];
+        if (!breakData) throw new Error(
+          `No breaks for "${variable}" in metadata.json — re-run the R pipeline (index.R) to regenerate app data.`
+        );
+        const scale = buildColorScale(variable, breakData);
         const abs = new URL(`${BASE_URL}data/${level}.pmtiles`, window.location.href).href;
         setSourceUrl(`pmtiles://${abs}`);
         setColorScale(scale);

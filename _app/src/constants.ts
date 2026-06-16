@@ -8,7 +8,12 @@ export interface VariableConfig {
   palette: string[];
   invert: boolean;
   formatValue: (v: number) => string;
+  // true for raw SE counts — single value, no smoothed/raw swipe comparison
+  single?: boolean;
 }
+
+// Integer count with thousands separators (raw SE variables)
+const fmtCount = (v: number) => Math.round(v).toLocaleString();
 
 // 9-class ColorBrewer palettes
 const YlOrRd9 = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#bd0026', '#800026'];
@@ -145,8 +150,196 @@ export const VARIABLE_CONFIGS: Record<DVariable, VariableConfig> = {
     invert: true,
     formatValue: (v) => `${v.toFixed(2)} mi`,
   },
+
+  // ── Raw SE counts (single value — summed from L9 children at L8) ──────────────
+  hhpop: {
+    label: 'Population',
+    fullName: 'Household Population',
+    unit: 'people',
+    description: 'Population living in households (sum of L9 children at L8)',
+    palette: YlOrRd9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  households: {
+    label: 'Households',
+    fullName: 'Total Households',
+    unit: 'households',
+    description: 'Number of households (sum of L9 children at L8)',
+    palette: BuPu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  residential_units: {
+    label: 'Residential Units',
+    fullName: 'Residential Units',
+    unit: 'units',
+    description: 'Number of residential dwelling units (sum of L9 children at L8)',
+    palette: PuBuGn9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  total_jobs: {
+    label: 'Total Jobs',
+    fullName: 'Total Employment',
+    unit: 'jobs',
+    description: 'All jobs across every sector (sum of L9 children at L8)',
+    palette: YlGnBu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  industrial_jobs: {
+    label: 'Jobs: Industrial',
+    fullName: 'Industrial Jobs (Summary)',
+    unit: 'jobs',
+    description: 'Jobs in the industrial summary category',
+    palette: YlOrRd9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  retail_jobs: {
+    label: 'Jobs: Retail',
+    fullName: 'Retail Jobs (Summary)',
+    unit: 'jobs',
+    description: 'Jobs in the retail summary category',
+    palette: RdPu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  office_jobs: {
+    label: 'Jobs: Office',
+    fullName: 'Office Jobs (Summary)',
+    unit: 'jobs',
+    description: 'Jobs in the office summary category',
+    palette: YlGnBu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_accom_food: {
+    label: 'Sector: Accom/Food',
+    fullName: 'Accommodation & Food Services Jobs',
+    unit: 'jobs',
+    description: 'Jobs in accommodation and food services',
+    palette: YlOrRd9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_gov_edu: {
+    label: 'Sector: Gov/Edu',
+    fullName: 'Government & Education Jobs',
+    unit: 'jobs',
+    description: 'Jobs in government and education',
+    palette: BuPu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_health: {
+    label: 'Sector: Health',
+    fullName: 'Health Care Jobs',
+    unit: 'jobs',
+    description: 'Jobs in health care',
+    palette: RdPu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_manuf: {
+    label: 'Sector: Manufacturing',
+    fullName: 'Manufacturing Jobs',
+    unit: 'jobs',
+    description: 'Jobs in manufacturing',
+    palette: PuBuGn9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_office: {
+    label: 'Sector: Office',
+    fullName: 'Office Jobs (Detailed)',
+    unit: 'jobs',
+    description: 'Jobs in office-based industries (detailed breakdown)',
+    palette: YlGnBu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_other: {
+    label: 'Sector: Other',
+    fullName: 'Other Jobs',
+    unit: 'jobs',
+    description: 'Jobs not captured by the other sector categories',
+    palette: YlOrRd9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_retail: {
+    label: 'Sector: Retail',
+    fullName: 'Retail Jobs (Detailed)',
+    unit: 'jobs',
+    description: 'Jobs in retail trade (detailed breakdown)',
+    palette: RdYlGn9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
+  jobs_wholesale: {
+    label: 'Sector: Wholesale',
+    fullName: 'Wholesale Trade Jobs',
+    unit: 'jobs',
+    description: 'Jobs in wholesale trade',
+    palette: BuPu9,
+    invert: false,
+    formatValue: fmtCount,
+    single: true,
+  },
 };
 
+export interface VariableGroup {
+  label: string;
+  variables: DVariable[];
+}
+
+// Drives the grouped dropdown (optgroups) and the grouped hex-detail table.
+export const VARIABLE_GROUPS: VariableGroup[] = [
+  {
+    label: 'D Variables',
+    variables: ['density', 'diversity', 'design', 'destinations', 'demographics', 'income_diversity', 'transit_dist'],
+  },
+  {
+    label: 'Destination Detail',
+    variables: [
+      'destinations_center', 'destinations_health', 'destinations_school',
+      'destinations_grocery', 'destinations_cityhall', 'destinations_park', 'destinations_ems',
+    ],
+  },
+  {
+    label: 'Socioeconomic',
+    variables: ['hhpop', 'households', 'residential_units', 'total_jobs'],
+  },
+  {
+    label: 'Jobs (Summary)',
+    variables: ['industrial_jobs', 'retail_jobs', 'office_jobs'],
+  },
+  {
+    label: 'Jobs by Sector',
+    variables: [
+      'jobs_accom_food', 'jobs_gov_edu', 'jobs_health', 'jobs_manuf',
+      'jobs_office', 'jobs_other', 'jobs_retail', 'jobs_wholesale',
+    ],
+  },
+];
+
+// D variables (paired smoothed/raw). Kept for the smoothed-vs-raw detail rows.
 export const D_VARIABLES: DVariable[] = [
   'density', 'diversity', 'design',
   'destinations',

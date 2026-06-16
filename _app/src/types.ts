@@ -1,4 +1,7 @@
+// "D variables" (paired smoothed/raw) plus raw SE counts (single value). The
+// type name is kept for historical reasons; it now covers every mappable field.
 export type DVariable =
+  // D variables — have a smoothed value and a _raw counterpart (swipe-compared)
   | 'density'
   | 'diversity'
   | 'design'
@@ -12,7 +15,23 @@ export type DVariable =
   | 'destinations_ems'
   | 'demographics'
   | 'transit_dist'
-  | 'income_diversity';
+  | 'income_diversity'
+  // Raw SE counts — single value, no smoothed/raw distinction
+  | 'hhpop'
+  | 'households'
+  | 'residential_units'
+  | 'total_jobs'
+  | 'industrial_jobs'
+  | 'retail_jobs'
+  | 'office_jobs'
+  | 'jobs_accom_food'
+  | 'jobs_gov_edu'
+  | 'jobs_health'
+  | 'jobs_manuf'
+  | 'jobs_office'
+  | 'jobs_other'
+  | 'jobs_retail'
+  | 'jobs_wholesale';
 
 export type HexLevel = 'l9' | 'l8';
 export type LevelMode = 'auto' | HexLevel;
@@ -47,6 +66,22 @@ export interface PopupData {
   demographics: number | null;               demographics_raw: number | null;
   transit_dist: number | null;               transit_dist_raw: number | null;
   income_diversity: number | null;           income_diversity_raw: number | null;
+  // Raw SE counts — single value (no _raw counterpart)
+  hhpop: number | null;
+  households: number | null;
+  residential_units: number | null;
+  total_jobs: number | null;
+  industrial_jobs: number | null;
+  retail_jobs: number | null;
+  office_jobs: number | null;
+  jobs_accom_food: number | null;
+  jobs_gov_edu: number | null;
+  jobs_health: number | null;
+  jobs_manuf: number | null;
+  jobs_office: number | null;
+  jobs_other: number | null;
+  jobs_retail: number | null;
+  jobs_wholesale: number | null;
 }
 
 export interface ColorStop {

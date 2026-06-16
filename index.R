@@ -111,14 +111,15 @@ smooth_by_neighbors <- function(hex_ids, values, neighbor_index) {
 
 # 3-tier income diversity: min(low, mid, high) / max(low, mid, high).
 # tier_breaks is c(low_max, mid_max) — 1-based indices into counts splitting into Low/Mid/High.
-# Returns NA when total households = 0; returns 0 when any tier is absent.
+# Works on raw tier counts: the shared /total divisor cancels out of the min/max
+# ratio, so dividing into shares first would give the identical result. Returns
+# NA when total households = 0 (avoids 0/0); returns 0 when any tier is absent.
 income_diversity_from_tiers <- function(counts, tier_breaks) {
   counts[is.na(counts) | counts < 0] <- 0
-  total <- sum(counts)
-  if (total == 0) return(NA_real_)
-  low  <- sum(counts[seq_len(tier_breaks["low_max"])]) / total
-  mid  <- sum(counts[seq(tier_breaks["low_max"] + 1L, tier_breaks["mid_max"])]) / total
-  high <- sum(counts[seq(tier_breaks["mid_max"] + 1L, length(counts))]) / total
+  if (sum(counts) == 0) return(NA_real_)
+  low  <- sum(counts[seq_len(tier_breaks["low_max"])])
+  mid  <- sum(counts[seq(tier_breaks["low_max"] + 1L, tier_breaks["mid_max"])])
+  high <- sum(counts[seq(tier_breaks["mid_max"] + 1L, length(counts))])
   min(low, mid, high) / max(low, mid, high)
 }
 
@@ -527,18 +528,23 @@ se_hex$income_diversity_raw      <- income_diversity_raw
 ## Aggregate SE from L9 → L8
 h8_ids_vec <- as.character(h3o::get_parents(h3o::h3_from_strings(hex_ids), resolution = 8L))
 
+# Raw SE counts aggregate to L8 as a plain sum of each cell's L9 children — only
+# the D variables (and their intermediaries) get neighbor-weighted further down.
+# So L8 population, jobs, households, etc. are exact child sums, not weighted.
+se_count_cols <- c(
+  "households", "hhpop", "residential_units", "total_jobs",
+  "industrial_jobs", "retail_jobs", "office_jobs",
+  "jobs_accom_food", "jobs_gov_edu", "jobs_health", "jobs_manuf",
+  "jobs_office", "jobs_other", "jobs_retail", "jobs_wholesale"
+)
+
 # Sum counts by L8 parent (drop geometry first — summarise on sf would dissolve
 # L9 polygons into irregular unions instead of clean H3 L8 hex boundaries)
 se_l8_data <- sf::st_drop_geometry(se_hex) |>
   dplyr::mutate(hex_id = h8_ids_vec) |>
-  dplyr::select(hex_id, residential_units, total_jobs, households) |>
+  dplyr::select(hex_id, dplyr::all_of(se_count_cols)) |>
   dplyr::group_by(hex_id) |>
-  dplyr::summarise(
-    residential_units = sum(residential_units, na.rm = TRUE),
-    total_jobs        = sum(total_jobs,        na.rm = TRUE),
-    households        = sum(households,        na.rm = TRUE),
-    .groups = "drop"
-  )
+  dplyr::summarise(dplyr::across(dplyr::everything(), \(x) sum(x, na.rm = TRUE)), .groups = "drop")
 
 # Build true H3 L8 hex boundaries: vertex convex hull of each cell's 6 vertices
 h8_geom <- h3o::h3_from_strings(se_l8_data$hex_id) |>
@@ -812,7 +818,15 @@ rename_smoothed <- function(sf_obj) {
 sf::write_sf(rename_smoothed(se_hex), gdb_path, layer = paste0(GDB_NAME, "_l9"), driver = "OpenFileGDB", append = FALSE)
 sf::write_sf(rename_smoothed(se_l8),  gdb_path, layer = paste0(GDB_NAME, "_l8"), driver = "OpenFileGDB", append = FALSE)
 
-zip(zip_path, files = gdb_path, flags = "-r9X")
+# Zip from inside _output with a relative path so the archive contains just
+# "<GDB_NAME>.gdb/..." at its root (a relative path keeps zip() from baking in
+# the full directory tree). Remove any stale archive first, since zip() appends
+# to an existing file rather than overwriting it.
+if (file.exists(zip_path)) unlink(zip_path)
+old_wd <- setwd(file.path(root, "_output"))
+on.exit(setwd(old_wd), add = TRUE)
+zip(basename(zip_path), files = basename(gdb_path), flags = "-r9X")
+setwd(old_wd)
 unlink(gdb_path, recursive = TRUE)
 
 # ── Web App Data Export ─────────────────────────────────────────────────────────
@@ -839,6 +853,10 @@ app_cols <- c(
   "income_diversity", "income_diversity_raw"
 )
 
+# Raw SE counts (single value, no smoothed/raw pair) are explorable in the app
+# alongside the D variables. se_count_cols is defined in the L8 pipeline above.
+app_cols <- c(app_cols, se_count_cols)
+
 # Export PMTiles — viewport-aware tiles for faster web app loading.
 # freestiler uses a Rust backend; no external CLI needed on any OS.
 export_pmtiles <- function(sf_obj, dest_path, min_zoom, max_zoom) {
@@ -856,40 +874,55 @@ export_pmtiles(se_l8,  file.path(app_data_dir, "l8.pmtiles"), min_zoom = 6L,  ma
 # map sides are on the same scale for honest visual comparison)
 N_BREAKS <- 9L
 
+# Fisher breaks + per-bin counts of the mapped values. `vals` is the pool the
+# breaks are fit on (smoothed + raw for D variables, so both swipe sides share a
+# scale); `mapped` is the series the histogram counts (what the map renders).
+break_stats <- function(vals, mapped) {
+  vals <- vals[!is.na(vals) & is.finite(vals)]
+  k    <- min(N_BREAKS, length(unique(vals)))
+  if (k < 2L) {
+    return(list(breaks = numeric(0), min = min(vals, na.rm = TRUE), max = max(vals, na.rm = TRUE), counts = integer(0)))
+  }
+  brks <- classInt::classIntervals(vals, k, style = "fisher")$brks
+  mapped <- mapped[!is.na(mapped) & is.finite(mapped)]
+  bin_idx    <- .bincode(mapped, brks, right = TRUE, include.lowest = TRUE)
+  bin_counts <- tabulate(bin_idx, nbins = k)
+  list(
+    # I(unname()) strips H3-ID names and prevents auto_unbox on length-1 vectors
+    breaks = I(unname(round(brks[-c(1L, length(brks))], 8L))),
+    # Use actual data min/max rather than brks endpoints: classInt Fisher can
+    # produce boundary breaks slightly outside the data range.
+    min    = min(vals),
+    max    = max(vals),
+    counts = I(unname(as.integer(bin_counts)))
+  )
+}
+
 compute_level_breaks <- function(sf_obj) {
-  df   <- sf::st_drop_geometry(sf_obj)
-  vars <- c(
+  df <- sf::st_drop_geometry(sf_obj)
+
+  # D variables: pool smoothed + raw onto one scale (the histogram counts the
+  # smoothed series, which is what the left map renders).
+  paired_vars <- c(
     "density", "diversity", "design",
     "destinations",
     "destinations_center", "destinations_health", "destinations_school",
     "destinations_grocery", "destinations_cityhall", "destinations_park", "destinations_ems",
     "demographics", "transit_dist", "income_diversity"
   )
-  lapply(setNames(vars, vars), function(v) {
+  paired <- lapply(setNames(paired_vars, paired_vars), function(v) {
     vals <- c(df[[v]], df[[paste0(v, "_raw")]])
     # Destination scores are logically [0, 1]; clamp any floating-point overshoot.
     if (startsWith(v, "destinations")) vals <- pmax(0, pmin(1, vals))
-    vals <- vals[!is.na(vals) & is.finite(vals)]
-    k    <- min(N_BREAKS, length(unique(vals)))
-    if (k < 2L) {
-      return(list(breaks = numeric(0), min = min(vals, na.rm = TRUE), max = max(vals, na.rm = TRUE), counts = integer(0)))
-    }
-    brks <- classInt::classIntervals(vals, k, style = "fisher")$brks
-    # Count smoothed hex values per bin (used by the app's histogram legend)
-    smoothed <- df[[v]]
-    smoothed <- smoothed[!is.na(smoothed) & is.finite(smoothed)]
-    bin_idx   <- .bincode(smoothed, brks, right = TRUE, include.lowest = TRUE)
-    bin_counts <- tabulate(bin_idx, nbins = k)
-    list(
-      # I(unname()) strips H3-ID names and prevents auto_unbox on length-1 vectors
-      breaks = I(unname(round(brks[-c(1L, length(brks))], 8L))),
-      # Use actual data min/max rather than brks endpoints: classInt Fisher can
-      # produce boundary breaks slightly outside the data range.
-      min    = min(vals),
-      max    = max(vals),
-      counts = I(unname(as.integer(bin_counts)))
-    )
+    break_stats(vals, df[[v]])
   })
+
+  # Raw SE counts: single series, so the scale and histogram come from one column.
+  counts <- lapply(setNames(se_count_cols, se_count_cols), function(v) {
+    break_stats(df[[v]], df[[v]])
+  })
+
+  c(paired, counts)
 }
 
 metadata <- list(

@@ -56,13 +56,15 @@ export function Sidebar({
 
       <div style={styles.sep} />
 
-      {/* Swipe hint */}
-      <div style={styles.hint}>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M3 7h8M7 3l4 4-4 4" stroke="#0067B1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        Drag divider to compare <strong>Smoothed</strong> vs <strong>Raw</strong>
-      </div>
+      {/* Swipe hint — only meaningful for D variables (which have a raw counterpart) */}
+      {!cfg.single && (
+        <div style={styles.hint}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M3 7h8M7 3l4 4-4 4" stroke="#0067B1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Drag divider to compare <strong>Smoothed</strong> vs <strong>Raw</strong>
+        </div>
+      )}
 
       {/* Roads layer toggle */}
       <div style={styles.roadToggleWrap}>

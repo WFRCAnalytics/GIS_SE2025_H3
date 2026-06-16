@@ -2,6 +2,8 @@
 
 Calculates six **D variables** — a standard framework for measuring urban form and its relationship to travel behavior — for the WFRC/MAG region at H3 level-9 hexagon resolution using WFRC SE 2025 socioeconomic data. Each variable is available at two H3 resolutions (level 8 and level 9) and as both a smoothed and a raw value. The Destinations variable additionally exposes seven sub-component columns (one per amenity type). The Demographics dimension includes two measures: median household income and the Income Diversity Index.
 
+The raw SE inputs (population, households, residential units, total jobs, and the full job-sector breakdown) are also carried straight through to the output and are explorable in the app alongside the calculated D variables. These plain counts are *not* smoothed — at level 8 each is simply the sum of its seven level-9 children (see [Level 8 aggregation](#level-8-aggregation)).
+
 ## Variables
 
 | # | D Variable | Full Name | What it measures |
@@ -36,6 +38,13 @@ The center cell retains the largest weight (40%), so each hex's own character do
 Weights are configurable at the top of `index.R` and must sum to 1. For edge cells (on the boundary of the study area), each present neighbor still receives the same fixed per-cell weight (`ring_weight / max_ring_size`), but missing neighbors simply contribute nothing — their weight is not redistributed. This means edge cells have a total weight slightly below 1.0, which is intentional: it avoids over-inflating the influence of the few present neighbors just because the cell happens to sit at a boundary.
 
 The app's **Raw (Unsmoothed)** map panel shows each variable computed with no neighbor influence (center weight = 1.0), allowing direct comparison of the two representations.
+
+### Level 8 aggregation
+
+Two different aggregation rules apply when moving from level 9 to the coarser level 8:
+
+- **Raw SE counts** (population, households, residential units, jobs and every job sector) are aggregated as a **plain sum of each L8 cell's seven L9 children**. There is no neighbor weighting — L8 population is exactly the population of its children, so regional totals are identical at both resolutions.
+- **D variables and their intermediaries** are *not* summed. The L8 hexes are built first, then each D variable is recomputed on the L8 grid with the same neighbor-weighted smoothing used at L9 (using L8-scale ring weights and hex area). This keeps each score conceptually meaningful at its own resolution rather than averaging L9 scores.
 
 ---
 
@@ -272,12 +281,12 @@ Open the project and source `index.R` (RStudio, Positron, or `Rscript index.R` f
 
 1. Fetch and cache all remote data (first run only — subsequent runs load from cache)
 2. Calculate all six D variables, seven Destinations sub-components, and Income Diversity Index at both H3 level 8 and level 9
-3. Export `_output/wfrc_se_2025_rtp23.gdb.zip` with all original SE columns plus D variable columns
+3. Export `_output/wfrc_se_2025_rtp23.gdb.zip` with all original SE columns (summed to L8 from L9 children) plus D variable columns
 4. Export PMTiles (`_app/public/data/l9.pmtiles`, `_app/public/data/l8.pmtiles`) and `_app/public/data/metadata.json` for the web app
 
 ## Output columns
 
-The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8` (H3 level-8) — each with all original SE columns plus the D variable columns below. Smoothed and raw versions use symmetric suffixes so it is unambiguous which is which.
+The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8` (H3 level-8) — each with all original SE columns (see [Raw SE columns](#raw-se-columns)) plus the D variable columns below. Smoothed and raw versions use symmetric suffixes so it is unambiguous which is which.
 
 ### Core D variables
 
@@ -318,3 +327,25 @@ Each amenity is also stored as its own smoothed + raw column pair for per-amenit
 | `destinations_park_raw` | numeric | Park presence flag 0/1 (raw) |
 | `destinations_ems_smoothed` | numeric | EMS station presence flag 0/1 (smoothed) |
 | `destinations_ems_raw` | numeric | EMS station presence flag 0/1 (raw) |
+
+### Raw SE columns
+
+The original SE inputs are passed through unchanged at L9 and summed from the L9 children at L8 (see [Level 8 aggregation](#level-8-aggregation)). They are single counts — there is no smoothed/raw distinction — and are explorable in the app under the **Socioeconomic**, **Jobs (Summary)**, and **Jobs by Sector** groups.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `hhpop` | numeric | Household population (people) |
+| `households` | numeric | Total households |
+| `residential_units` | numeric | Residential dwelling units |
+| `total_jobs` | numeric | Total employment (all sectors) |
+| `industrial_jobs` | numeric | Industrial jobs (3-class summary) |
+| `retail_jobs` | numeric | Retail jobs (3-class summary) |
+| `office_jobs` | numeric | Office jobs (3-class summary) |
+| `jobs_accom_food` | numeric | Accommodation & food services jobs |
+| `jobs_gov_edu` | numeric | Government & education jobs |
+| `jobs_health` | numeric | Health care jobs |
+| `jobs_manuf` | numeric | Manufacturing jobs |
+| `jobs_office` | numeric | Office jobs (detailed sector) |
+| `jobs_other` | numeric | Other jobs |
+| `jobs_retail` | numeric | Retail jobs (detailed sector) |
+| `jobs_wholesale` | numeric | Wholesale trade jobs |

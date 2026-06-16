@@ -20,7 +20,7 @@ export function Legend({ variable, level, colorScale }: LegendProps) {
       <div style={styles.wrap}>
         <div style={styles.labelRow}>
           <div style={styles.label}>{cfg.label}</div>
-          <div style={styles.badge}>{level.toUpperCase()} · Smoothed</div>
+          <div style={styles.badge}>{cfg.single ? level.toUpperCase() : `${level.toUpperCase()} · Smoothed`}</div>
         </div>
         <div style={{ color: 'var(--color-text-disabled)', fontSize: 11 }}>Not developed or Not applicable</div>
       </div>

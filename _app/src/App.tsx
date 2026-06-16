@@ -101,6 +101,21 @@ export default function App() {
       demographics:              num(props.demographics),              demographics_raw:          num(props.demographics_raw),
       transit_dist:              num(props.transit_dist),              transit_dist_raw:          num(props.transit_dist_raw),
       income_diversity:          num(props.income_diversity),          income_diversity_raw:      num(props.income_diversity_raw),
+      hhpop:                     num(props.hhpop),
+      households:                num(props.households),
+      residential_units:         num(props.residential_units),
+      total_jobs:                num(props.total_jobs),
+      industrial_jobs:           num(props.industrial_jobs),
+      retail_jobs:               num(props.retail_jobs),
+      office_jobs:               num(props.office_jobs),
+      jobs_accom_food:           num(props.jobs_accom_food),
+      jobs_gov_edu:              num(props.jobs_gov_edu),
+      jobs_health:               num(props.jobs_health),
+      jobs_manuf:                num(props.jobs_manuf),
+      jobs_office:               num(props.jobs_office),
+      jobs_other:                num(props.jobs_other),
+      jobs_retail:               num(props.jobs_retail),
+      jobs_wholesale:            num(props.jobs_wholesale),
     });
   }, []);
 
@@ -140,6 +155,7 @@ export default function App() {
             colorScaleL9={dataL9.colorScale}
             roadsAbove={roadsAbove}
             opacity={hexOpacity}
+            compare={!VARIABLE_CONFIGS[variable].single}
             onHexHover={handleHexHover}
             onZoomChange={handleZoomChange}
           />
