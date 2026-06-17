@@ -60,13 +60,12 @@ function buildOpacityExpr(
 interface Slot {
   srcId: string;
   fillId: string;
-  lineId: string;
   hlId: string;
 }
 
 function makeSlot(base: string, n: number): Slot {
   const p = `${base}-${n}`;
-  return { srcId: p, fillId: `${p}-fill`, lineId: `${p}-line`, hlId: `${p}-hl` };
+  return { srcId: p, fillId: `${p}-fill`, hlId: `${p}-hl` };
 }
 
 export function HexLayer({
@@ -119,12 +118,10 @@ export function HexLayer({
         'fill-color': '#CCCCCC',
         'fill-opacity': 0,
         'fill-opacity-transition': { duration: FADE_MS, delay: 0 },
+        // No outline; disable antialiasing so translucent hex edges don't
+        // stack into dark seams at shared borders (visible when zoomed out).
+        'fill-antialias': false,
       },
-    }, beforeId);
-    map.addLayer({
-      id: slot.lineId, type: 'line', source: slot.srcId, 'source-layer': LAYER,
-      minzoom: 10,
-      paint: { 'line-color': 'rgba(0,0,0,0.15)', 'line-width': 0.6 },
     }, beforeId);
     map.addLayer({
       id: slot.hlId, type: 'line', source: slot.srcId, 'source-layer': LAYER,
@@ -156,7 +153,6 @@ export function HexLayer({
         map.setPaintProperty(outgoing.fillId, 'fill-opacity', 0);
         outgoingTimer = setTimeout(() => {
           if (map.getLayer(outgoing.hlId))   map.removeLayer(outgoing.hlId);
-          if (map.getLayer(outgoing.lineId)) map.removeLayer(outgoing.lineId);
           if (map.getLayer(outgoing.fillId)) map.removeLayer(outgoing.fillId);
           if (map.getSource(outgoing.srcId)) map.removeSource(outgoing.srcId);
         }, FADE_MS + 30);
@@ -205,7 +201,6 @@ export function HexLayer({
       if (outgoingTimer !== null) clearTimeout(outgoingTimer);
       if (outgoing) {
         if (map.getLayer(outgoing.hlId))   map.removeLayer(outgoing.hlId);
-        if (map.getLayer(outgoing.lineId)) map.removeLayer(outgoing.lineId);
         if (map.getLayer(outgoing.fillId)) map.removeLayer(outgoing.fillId);
         if (map.getSource(outgoing.srcId)) map.removeSource(outgoing.srcId);
       }
@@ -213,7 +208,6 @@ export function HexLayer({
       map.off('mousemove', slot.fillId, onMouseMove);
       map.off('mouseleave', slot.fillId, onMouseLeave);
       if (map.getLayer(slot.hlId))   map.removeLayer(slot.hlId);
-      if (map.getLayer(slot.lineId)) map.removeLayer(slot.lineId);
       if (map.getLayer(slot.fillId)) map.removeLayer(slot.fillId);
       if (map.getSource(slot.srcId)) map.removeSource(slot.srcId);
 
@@ -229,7 +223,7 @@ export function HexLayer({
     const slot = currentSlot.current;
     if (!slot) return;
     const beforeId = hexInsertBefore(map, roadsAbove);
-    [slot.fillId, slot.lineId, slot.hlId].forEach(id => {
+    [slot.fillId, slot.hlId].forEach(id => {
       if (map.getLayer(id)) map.moveLayer(id, beforeId);
     });
   }, [map, roadsAbove]);
