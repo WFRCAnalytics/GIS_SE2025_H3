@@ -805,8 +805,9 @@ par(op)
 
 if (!dir.exists(file.path(root, "_output"))) dir.create(file.path(root, "_output"))
 
-gdb_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb"))
-zip_path <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
+gdb_path  <- file.path(root, "_output", paste0(GDB_NAME, ".gdb"))
+zip_path  <- file.path(root, "_output", paste0(GDB_NAME, ".gdb.zip"))
+gpkg_path <- file.path(root, "_output", paste0(GDB_NAME, ".gpkg"))
 
 # Rename smoothed D-variable columns to _smoothed so raw and smoothed names are
 # symmetric and unambiguous (density_smoothed / density_raw, etc.).
@@ -817,6 +818,18 @@ rename_smoothed <- function(sf_obj) {
 
 sf::write_sf(rename_smoothed(se_hex), gdb_path, layer = paste0(GDB_NAME, "_l9"), driver = "OpenFileGDB", append = FALSE)
 sf::write_sf(rename_smoothed(se_l8),  gdb_path, layer = paste0(GDB_NAME, "_l8"), driver = "OpenFileGDB", append = FALSE)
+
+# GDAL's OpenFileGDB writer produces .spx spatial index files that ArcGIS and
+# QGIS can fail to query correctly at small extents (features vanish when
+# zoomed in; see https://github.com/OSGeo/gdal/issues/5888). Deleting them
+# makes readers fall back to a correct in-memory index instead.
+unlink(list.files(gdb_path, pattern = "\\.spx$", full.names = TRUE))
+
+# GeoPackage backup of the same two layers, unaffected by the OpenFileGDB
+# spatial index bug above (GeoPackage indexes via SQLite's own R*Tree).
+if (file.exists(gpkg_path)) unlink(gpkg_path)
+sf::write_sf(rename_smoothed(se_hex), gpkg_path, layer = paste0(GDB_NAME, "_l9"), driver = "GPKG", append = FALSE)
+sf::write_sf(rename_smoothed(se_l8),  gpkg_path, layer = paste0(GDB_NAME, "_l8"), driver = "GPKG", append = FALSE)
 
 # Zip from inside _output with a relative path so the archive contains just
 # "<GDB_NAME>.gdb/..." at its root (a relative path keeps zip() from baking in
