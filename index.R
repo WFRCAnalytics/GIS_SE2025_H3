@@ -40,6 +40,20 @@ INCOME_TIER_MODE <- "regional_tertiles"
 # Example: Low = bins 1–4 (<$25k), Mid = bins 5–8 ($25k–$50k), High = bins 9–11 ($50k–$75k)
 # INCOME_TIER_BREAKS <- c(low_max = 4L, mid_max = 8L)
 
+# Hex grid expansion areas with no SE 2025 TAZ coverage yet (pending UDOT's
+# Statewide Travel Demand Model). Each entry scopes a polygon out of WFRC's
+# RegionalBoundaryComponents layer — NOT the full county, which would bloat
+# the grid with empty rural/military land (raw Tooele county alone polyfills
+# to ~168k L9 hexes vs ~33k in the entire existing 5-county core). Design,
+# Destinations, and Demographics are computed for these hexes immediately;
+# Density/Diversity stay NA until real household/job counts arrive.
+# Morgan County intentionally excluded — its RPO boundary is ~the whole
+# county (no usable trim), so it's deferred rather than added wholesale.
+EXPANSION_AREAS <- list(
+  list(label = "WFRC MPO (Box Elder Non-TAZ)", plan_org = "WFRC MPO",   in_county = "Box Elder"),
+  list(label = "Tooele RPO",                   plan_org = "Tooele RPO", in_county = "Tooele")
+)
+
 root <- here::here()
 
 # ── Libraries ─────────────────────────────────────────────────────────────────
@@ -277,6 +291,13 @@ if (!file.exists(utah_counties_path)) {
   utah_counties <- sf::read_sf(utah_counties_path)
 }
 
+# WFRC regional planning boundary components — used to scope hex grid
+# expansion into areas with no SE 2025 TAZ data (see EXPANSION_AREAS above)
+regional_boundary_components <- fetch_or_cache(
+  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/RegionalBoundaryComponents/FeatureServer/0",
+  cache_path = "_data/remote/boundaries/regional_boundary_components.gpkg"
+)
+
 # ── SE Data Import ─────────────────────────────────────────────────────────────
 
 se_hex <- sf::read_sf(
@@ -287,6 +308,101 @@ hex_ids <- se_hex$hex_id
 hex_crs <- sf::st_crs(se_hex)
 
 na_county_names <- c("Tooele", "Morgan", "Summit", "Wasatch")
+
+# Raw SE input columns — defined here (not just at L8, where they're also used
+# for aggregation) so the hex-grid-expansion section below can NA them out for
+# newly-added hexes with no TAZ data yet.
+se_count_cols <- c(
+  "households", "hhpop", "residential_units", "total_jobs",
+  "industrial_jobs", "retail_jobs", "office_jobs",
+  "jobs_accom_food", "jobs_gov_edu", "jobs_health", "jobs_manuf",
+  "jobs_office", "jobs_other", "jobs_retail", "jobs_wholesale"
+)
+
+# ── Hex Grid Expansion: SE-data-pending areas ──────────────────────────────────
+# Add H3 L9 hexes for EXPANSION_AREAS (see Parameters). These get real
+# Design/Destinations/Demographics; SE columns are left NA (not 0) so the
+# rest of the pipeline can tell "no TAZ data yet" apart from "confirmed zero".
+
+expansion_boundary <- dplyr::bind_rows(lapply(EXPANSION_AREAS, function(a) {
+  dplyr::filter(regional_boundary_components,
+    PlanOrg == a$plan_org, InCounty == a$in_county, Label == a$label)
+})) |>
+  sf::st_transform(4326L) |>
+  sf::st_make_valid()
+
+stopifnot(
+  "One or more EXPANSION_AREAS filters matched zero features — check field values against RegionalBoundaryComponents" =
+    nrow(expansion_boundary) == length(EXPANSION_AREAS)
+)
+
+new_hex_ids <- h3o::sfc_to_cells(
+    sf::st_geometry(sf::st_union(expansion_boundary)), resolution = 9L, containment = "centroid"
+  ) |>
+  h3o::flatten_h3() |>
+  as.character() |>
+  unique() |>
+  setdiff(hex_ids)
+
+stopifnot("No new H3 cells generated for EXPANSION_AREAS" = length(new_hex_ids) > 0L)
+
+# Build true H3 L9 hex boundaries the same way the L8 grid is built further
+# down (vertex convex hull of each cell's 6/5 vertices).
+new_geom <- h3o::h3_from_strings(new_hex_ids) |>
+  h3o::h3_to_vertexes() |>
+  lapply(sf::st_convex_hull) |>
+  sf::st_sfc(crs = 4326L) |>
+  sf::st_transform(hex_crs)
+
+sf_col <- attr(se_hex, "sf_column")
+new_hex_sf <- sf::st_sf(
+  hex_id = new_hex_ids,
+  as.data.frame(matrix(NA_real_, length(new_hex_ids), length(se_count_cols),
+                        dimnames = list(NULL, se_count_cols))),
+  geometry = sf::st_cast(new_geom, "MULTIPOLYGON")
+)
+names(new_hex_sf)[names(new_hex_sf) == "geometry"] <- sf_col
+sf::st_geometry(new_hex_sf) <- sf_col
+
+# The 8 pre-existing hexes that already clip into Tooele carry 0s straight
+# from the source gdb — edge spillover from WFRC's own grid, not real
+# coverage. Null them out too so "no SE data" has one consistent
+# representation across old and newly-added hexes.
+stray_hex_ids <- sf::st_join(
+  sf::st_centroid(se_hex["hex_id"]),
+  sf::st_transform(dplyr::filter(utah_counties, NAME == "Tooele")["NAME"], hex_crs),
+  join = sf::st_within
+) |>
+  sf::st_drop_geometry() |>
+  dplyr::filter(!is.na(NAME)) |>
+  dplyr::pull(hex_id)
+se_hex[se_hex$hex_id %in% stray_hex_ids, se_count_cols] <- NA_real_
+
+# Hexes with no real SE data at all — real (pre-existing stray) or newly
+# added. Used below to force Density/Diversity to NA regardless of county.
+no_se_data_hex_ids <- c(new_hex_ids, stray_hex_ids)
+
+se_hex  <- dplyr::bind_rows(se_hex, new_hex_sf)
+hex_ids <- se_hex$hex_id
+
+# ── Demographics fallback weight for expansion hexes ────────────────────────
+# The household-weighted income interpolation below needs a weight surface,
+# which expansion hexes don't have (no `households` yet). Reuse 2020 Census
+# block occupied-housing-unit counts (H1_002N) — cached from this project's
+# earlier income-interpolation method — as a proxy weight, only for these
+# hexes; `households` itself stays NA so Density/Diversity remain correctly
+# blocked. Area-weighted (st_interpolate_aw), not interpolate_pw, because
+# blocks are already the finest Census geography available — there's no
+# finer population surface left to weight them by.
+blocks_hh <- sf::read_sf(file.path(root, "_data/remote/demographics/blocks_2020_hh.gpkg")) |>
+  sf::st_transform(hex_crs) |>
+  sf::st_make_valid()
+
+proxy_target <- sf::st_make_valid(se_hex[se_hex$hex_id %in% no_se_data_hex_ids, "hex_id"])
+proxy_hh     <- sf::st_interpolate_aw(blocks_hh["value"], proxy_target, extensive = TRUE)
+
+se_hex$hh_weight <- se_hex$households
+se_hex$hh_weight[match(proxy_target$hex_id, se_hex$hex_id)] <- proxy_hh$value
 
 # ── Destinations: shared setup (used by both L9 and L8) ───────────────────────
 
@@ -362,6 +478,9 @@ na_hex_ids <- sf::st_join(
   sf::st_drop_geometry() |>
   dplyr::filter(NAME %in% na_county_names) |>
   dplyr::pull(hex_id)
+# Union in expansion/stray hexes explicitly — they may fall in a county (e.g.
+# Box Elder) not otherwise in na_county_names, since only part of it lacks SE data.
+na_hex_ids <- union(na_hex_ids, no_se_data_hex_ids)
 density[hex_ids %in% na_hex_ids] <- NA_real_
 
 ## Diversity
@@ -415,15 +534,17 @@ destinations_ems      <- pmax(0, smooth_by_neighbors(hex_ids, ems_flag,        n
 
 ## Demographics
 # Household-weighted interpolation from BG → hex using SE 2025 estimated HH as
-# the weights layer. Same vintage as the pipeline; Census blocks (Method A) gave
-# R²=0.92, RMSE=$10,919, bias=$103 vs this method — negligible average difference.
+# the weights layer (hh_weight = households, except for expansion hexes with
+# no SE data yet, where it falls back to a Census-block proxy — see above).
+# Same vintage as the pipeline; Census blocks (Method A) gave R²=0.92,
+# RMSE=$10,919, bias=$103 vs this method — negligible average difference.
 demographics_interp <- tidycensus::interpolate_pw(
   from             = sf::st_transform(bg_income, hex_crs),
   to               = se_hex,
   to_id            = "hex_id",
   extensive        = FALSE,
-  weights          = se_hex[, c("hex_id", "households")],
-  weight_column    = "households",
+  weights          = se_hex[, c("hex_id", "hh_weight")],
+  weight_column    = "hh_weight",
   weight_placement = "surface"
 )
 demographics_raw <- tibble::tibble(hex_id = hex_ids) |>
@@ -432,10 +553,10 @@ demographics_raw <- tibble::tibble(hex_id = hex_ids) |>
     by = "hex_id"
   ) |>
   dplyr::left_join(
-    sf::st_drop_geometry(se_hex) |> dplyr::select(hex_id, households),
+    sf::st_drop_geometry(se_hex) |> dplyr::select(hex_id, hh_weight),
     by = "hex_id"
   ) |>
-  dplyr::mutate(estimate = dplyr::if_else(households == 0, NA_real_, estimate)) |>
+  dplyr::mutate(estimate = dplyr::if_else(is.na(hh_weight) | hh_weight == 0, NA_real_, estimate)) |>
   dplyr::pull(estimate)
 demographics <- smooth_by_neighbors(hex_ids, demographics_raw, neighbor_index)
 
@@ -452,8 +573,8 @@ hex_income_dist <- tidycensus::interpolate_pw(
   to               = se_hex,
   to_id            = "hex_id",
   extensive        = TRUE,
-  weights          = se_hex[, c("hex_id", "households")],
-  weight_column    = "households",
+  weights          = se_hex[, c("hex_id", "hh_weight")],
+  weight_column    = "hh_weight",
   weight_placement = "surface"
 )
 
@@ -531,18 +652,15 @@ h8_ids_vec <- as.character(h3o::get_parents(h3o::h3_from_strings(hex_ids), resol
 # Raw SE counts aggregate to L8 as a plain sum of each cell's L9 children — only
 # the D variables (and their intermediaries) get neighbor-weighted further down.
 # So L8 population, jobs, households, etc. are exact child sums, not weighted.
-se_count_cols <- c(
-  "households", "hhpop", "residential_units", "total_jobs",
-  "industrial_jobs", "retail_jobs", "office_jobs",
-  "jobs_accom_food", "jobs_gov_edu", "jobs_health", "jobs_manuf",
-  "jobs_office", "jobs_other", "jobs_retail", "jobs_wholesale"
-)
+# (se_count_cols is defined earlier, right after SE Data Import.)
 
 # Sum counts by L8 parent (drop geometry first — summarise on sf would dissolve
-# L9 polygons into irregular unions instead of clean H3 L8 hex boundaries)
+# L9 polygons into irregular unions instead of clean H3 L8 hex boundaries).
+# hh_weight rides along the same plain-sum aggregation as the real SE counts —
+# it's a household figure (real or Census-block proxy), so summing is correct.
 se_l8_data <- sf::st_drop_geometry(se_hex) |>
   dplyr::mutate(hex_id = h8_ids_vec) |>
-  dplyr::select(hex_id, dplyr::all_of(se_count_cols)) |>
+  dplyr::select(hex_id, dplyr::all_of(se_count_cols), hh_weight) |>
   dplyr::group_by(hex_id) |>
   dplyr::summarise(dplyr::across(dplyr::everything(), \(x) sum(x, na.rm = TRUE)), .groups = "drop")
 
@@ -571,6 +689,10 @@ na_hex_ids <- sf::st_join(
   sf::st_drop_geometry() |>
   dplyr::filter(NAME %in% na_county_names) |>
   dplyr::pull(hex_id)
+# An L8 hex is NA if ANY of its L9 children lack real SE data — otherwise its
+# summed counts would silently undercount rather than honestly read NA.
+no_se_data_hex_ids_l8 <- unique(h8_ids_vec[hex_ids %in% no_se_data_hex_ids])
+na_hex_ids <- union(na_hex_ids, no_se_data_hex_ids_l8)
 density_l8[h8_ids %in% na_hex_ids] <- NA_real_
 
 ## Diversity (L8)
@@ -629,8 +751,8 @@ demographics_interp_l8 <- tidycensus::interpolate_pw(
   to               = se_l8,
   to_id            = "hex_id",
   extensive        = FALSE,
-  weights          = se_l8[, c("hex_id", "households")],
-  weight_column    = "households",
+  weights          = se_l8[, c("hex_id", "hh_weight")],
+  weight_column    = "hh_weight",
   weight_placement = "surface"
 )
 demographics_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
@@ -639,10 +761,10 @@ demographics_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
     by = "hex_id"
   ) |>
   dplyr::left_join(
-    sf::st_drop_geometry(se_l8) |> dplyr::select(hex_id, households),
+    sf::st_drop_geometry(se_l8) |> dplyr::select(hex_id, hh_weight),
     by = "hex_id"
   ) |>
-  dplyr::mutate(estimate = dplyr::if_else(households == 0, NA_real_, estimate)) |>
+  dplyr::mutate(estimate = dplyr::if_else(is.na(hh_weight) | hh_weight == 0, NA_real_, estimate)) |>
   dplyr::pull(estimate)
 demographics_l8 <- smooth_by_neighbors(h8_ids, demographics_raw_l8, neighbor_index_l8)
 
