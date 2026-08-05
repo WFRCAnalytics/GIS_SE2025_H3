@@ -1,3 +1,11 @@
+# Computes the six urban-form D variables (Density, Diversity, Design,
+# Destinations, Demographics, Distance to Transit) for the WFRC/MAG region
+# at H3 levels 9 and 8. Full methodology: D_VARIABLE_CALCULATIONS.md.
+#
+# Flow: fetch/cache remote data -> import SE 2025 -> expand the hex grid
+# into Tooele/Box Elder areas with real USTM TAZ data -> compute L9 D
+# variables -> aggregate to L8 and recompute there -> export gdb/pmtiles.
+
 # ── Parameters ────────────────────────────────────────────────────────────────
 
 GDB_NAME          <- "wfrc_se_2025_rtp23"
@@ -40,18 +48,33 @@ INCOME_TIER_MODE <- "regional_tertiles"
 # Example: Low = bins 1–4 (<$25k), Mid = bins 5–8 ($25k–$50k), High = bins 9–11 ($50k–$75k)
 # INCOME_TIER_BREAKS <- c(low_max = 4L, mid_max = 8L)
 
-# Hex grid expansion areas with no SE 2025 TAZ coverage yet (pending UDOT's
-# Statewide Travel Demand Model). Each entry scopes a polygon out of WFRC's
-# RegionalBoundaryComponents layer — NOT the full county, which would bloat
-# the grid with empty rural/military land (raw Tooele county alone polyfills
-# to ~168k L9 hexes vs ~33k in the entire existing 5-county core). Design,
-# Destinations, and Demographics are computed for these hexes immediately;
-# Density/Diversity stay NA until real household/job counts arrive.
-# Morgan County intentionally excluded — its RPO boundary is ~the whole
-# county (no usable trim), so it's deferred rather than added wholesale.
+# Areas to add to the hex grid, each scoped to a RegionalBoundaryComponents
+# polygon rather than the full county (Tooele alone would polyfill to ~168k
+# L9 hexes of empty desert). Morgan is excluded — its RPO boundary is ~the
+# whole county, so there's no useful trim. `taz_se_sources` are real USTM SE
+# 2025 files, area-interpolated onto these hexes below. Box Elder needs two:
+# its TAZ.shp mixes old-style CO_TAZIDs (USTM-only TAZs) with new-style ones
+# (WFRC-modeled TAZs), each matching exactly one source file.
 EXPANSION_AREAS <- list(
-  list(label = "WFRC MPO (Box Elder Non-TAZ)", plan_org = "WFRC MPO",   in_county = "Box Elder"),
-  list(label = "Tooele RPO",                   plan_org = "Tooele RPO", in_county = "Tooele")
+  list(label = "WFRC MPO (Box Elder Non-TAZ)", plan_org = "WFRC MPO",   in_county = "Box Elder",
+       taz_se_sources = list(
+         list(path = "_data/ustm_20260805/SE/03_BoxElder/SE_BOXELDER_2025.csv"),
+         list(path = "_data/ustm_20260805/SE/00_WF/2_WFRC/FiscallyConstrained/SE_2025.csv", county_filter = "BOX ELDER")
+       )),
+  list(label = "Tooele RPO",                   plan_org = "Tooele RPO", in_county = "Tooele",
+       taz_se_sources = list(
+         list(path = "_data/ustm_20260805/SE/45_Tooele/SE_TOOELE_2025.csv")
+       ))
+)
+
+# USTM SE column -> our schema column. residential_units is derived
+# separately (TOTHH + secondary-housing units where available; see below).
+USTM_FIELD_MAP <- c(
+  households = "TOTHH", hhpop = "HHPOP", total_jobs = "TOTEMP",
+  industrial_jobs = "INDEMP", retail_jobs = "RETEMP", office_jobs = "OTHEMP",
+  jobs_retail = "RETL", jobs_accom_food = "FOOD", jobs_manuf = "MANU",
+  jobs_wholesale = "WSLE", jobs_office = "OFFI", jobs_gov_edu = "GVED",
+  jobs_health = "HLTH", jobs_other = "OTHR"
 )
 
 root <- here::here()
@@ -99,16 +122,15 @@ build_neighbor_index <- function(hex_ids, weights) {
   h3_cells  <- h3o::h3_from_strings(hex_ids)
   all_disks <- h3o::grid_disk(h3_cells, k = k)
   all_dists <- h3o::grid_distances(h3_cells, k = k)
-  data.frame(
+  tibble::tibble(
     center_id = rep(hex_ids, times = lengths(all_disks)),
     member_id = as.character(h3o::flatten_h3(all_disks)),
-    ring      = unlist(all_dists),
-    stringsAsFactors = FALSE
+    ring      = unlist(all_dists)
   ) |>
     dplyr::filter(member_id %in% hex_ids) |>
     dplyr::mutate(
-      weight = ifelse(ring == 0L, weights["center"],
-                      weights[paste0("ring", ring)] / (6L * ring))
+      weight = dplyr::if_else(ring == 0L, weights["center"],
+                              weights[paste0("ring", ring)] / (6L * ring))
     )
 }
 
@@ -141,6 +163,46 @@ income_diversity_from_tiers <- function(counts, tier_breaks) {
 flag_presence <- function(hex_sf, features_sf) {
   ft <- sf::st_transform(features_sf, sf::st_crs(hex_sf))
   as.integer(lengths(sf::st_intersects(hex_sf, ft)) > 0L)
+}
+
+# Reads one USTM SE csv, renames USTM_FIELD_MAP columns to our schema, and
+# derives residential_units. County-level extracts (e.g. SE_TOOELE_2025.csv)
+# are already single-county and carry USTM_SF/MF/RV (secondary/vacation
+# housing units, per UDOT: never included in TOTHH, safe to add directly).
+# The WFRC "FiscallyConstrained" extract covers multiple counties (needs
+# county_filter on its CO_NAME column) and lacks USTM_SF/MF/RV entirely, so
+# residential_units there is just TOTHH.
+load_ustm_se <- function(path, county_filter = NULL) {
+  se <- read.csv(file.path(root, path))
+  if (!"CO_TAZID" %in% names(se)) names(se)[1] <- "CO_TAZID"
+  if (!is.null(county_filter)) se <- dplyr::filter(se, CO_NAME == county_filter)
+  has_secondary <- all(c("USTM_SF", "USTM_MF", "USTM_RV") %in% names(se))
+
+  se |>
+    dplyr::rename(!!!USTM_FIELD_MAP) |>
+    dplyr::mutate(
+      residential_units = if (has_secondary) households + USTM_SF + USTM_MF + USTM_RV else households
+    ) |>
+    dplyr::select(CO_TAZID, dplyr::all_of(names(USTM_FIELD_MAP)), residential_units)
+}
+
+# Area-weighted apportionment of TAZ values onto target hexes: for each
+# TAZ-hex overlap piece, contribution = TAZ_value * (piece_area / TAZ_area).
+# Same st_intersection + area-ratio pattern as the wc_score calc below.
+# Deliberately manual rather than sf::st_interpolate_aw(), which silently
+# drops target rows with zero source overlap instead of returning NA — a
+# real risk here since hex and TAZ selections come from independent
+# boundary queries. Keeping hex_id as an explicit join key throughout avoids
+# any row-position assumption.
+interpolate_taz_to_hex <- function(taz_sf, target_hexes, value_cols) {
+  taz_sf$.taz_area <- as.numeric(sf::st_area(taz_sf))
+  ix <- sf::st_intersection(target_hexes["hex_id"], taz_sf[, c(".taz_area", value_cols)])
+  ix$.piece_area <- as.numeric(sf::st_area(ix))
+  sf::st_drop_geometry(ix) |>
+    dplyr::mutate(.frac = .piece_area / .taz_area) |>
+    dplyr::mutate(dplyr::across(dplyr::all_of(value_cols), ~ .x * .frac)) |>
+    dplyr::group_by(hex_id) |>
+    dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), sum), .groups = "drop")
 }
 
 # ── Remote Data Fetch & Cache ──────────────────────────────────────────────────
@@ -307,7 +369,10 @@ se_hex <- sf::read_sf(
 hex_ids <- se_hex$hex_id
 hex_crs <- sf::st_crs(se_hex)
 
-na_county_names <- c("Tooele", "Morgan", "Summit", "Wasatch")
+# Tooele intentionally NOT listed here — it now has real TAZ SE data (see
+# "TAZ SE Data Import" below), so masking is precise per-hex via
+# no_se_data_hex_ids instead of blanket-excluding the whole county.
+na_county_names <- c("Morgan", "Summit", "Wasatch")
 
 # Raw SE input columns — defined here (not just at L8, where they're also used
 # for aggregation) so the hex-grid-expansion section below can NA them out for
@@ -324,10 +389,11 @@ se_count_cols <- c(
 # Design/Destinations/Demographics; SE columns are left NA (not 0) so the
 # rest of the pipeline can tell "no TAZ data yet" apart from "confirmed zero".
 
-expansion_boundary <- dplyr::bind_rows(lapply(EXPANSION_AREAS, function(a) {
-  dplyr::filter(regional_boundary_components,
-    PlanOrg == a$plan_org, InCounty == a$in_county, Label == a$label)
-})) |>
+expansion_boundary <- purrr::map(EXPANSION_AREAS, \(a) {
+    dplyr::filter(regional_boundary_components,
+      PlanOrg == a$plan_org, InCounty == a$in_county, Label == a$label)
+  }) |>
+  dplyr::bind_rows() |>
   sf::st_transform(4326L) |>
   sf::st_make_valid()
 
@@ -336,13 +402,20 @@ stopifnot(
     nrow(expansion_boundary) == length(EXPANSION_AREAS)
 )
 
-new_hex_ids <- h3o::sfc_to_cells(
+expansion_cell_ids <- h3o::sfc_to_cells(
     sf::st_geometry(sf::st_union(expansion_boundary)), resolution = 9L, containment = "centroid"
   ) |>
   h3o::flatten_h3() |>
   as.character() |>
-  unique() |>
-  setdiff(hex_ids)
+  unique()
+
+new_hex_ids <- setdiff(expansion_cell_ids, hex_ids)
+
+# Pre-existing WFRC hexes whose centroid also falls in an expansion
+# boundary — these keep their original se_hex values untouched.
+overlap_hex_ids <- intersect(expansion_cell_ids, hex_ids)
+message(length(overlap_hex_ids), " pre-existing hex(es) overlap an expansion boundary and keep their original se_hex values: ",
+        paste(overlap_hex_ids, collapse = ", "))
 
 stopifnot("No new H3 cells generated for EXPANSION_AREAS" = length(new_hex_ids) > 0L)
 
@@ -350,7 +423,7 @@ stopifnot("No new H3 cells generated for EXPANSION_AREAS" = length(new_hex_ids) 
 # down (vertex convex hull of each cell's 6/5 vertices).
 new_geom <- h3o::h3_from_strings(new_hex_ids) |>
   h3o::h3_to_vertexes() |>
-  lapply(sf::st_convex_hull) |>
+  purrr::map(sf::st_convex_hull) |>
   sf::st_sfc(crs = 4326L) |>
   sf::st_transform(hex_crs)
 
@@ -364,45 +437,89 @@ new_hex_sf <- sf::st_sf(
 names(new_hex_sf)[names(new_hex_sf) == "geometry"] <- sf_col
 sf::st_geometry(new_hex_sf) <- sf_col
 
-# The 8 pre-existing hexes that already clip into Tooele carry 0s straight
-# from the source gdb — edge spillover from WFRC's own grid, not real
-# coverage. Null them out too so "no SE data" has one consistent
-# representation across old and newly-added hexes.
-stray_hex_ids <- sf::st_join(
-  sf::st_centroid(se_hex["hex_id"]),
-  sf::st_transform(dplyr::filter(utah_counties, NAME == "Tooele")["NAME"], hex_crs),
-  join = sf::st_within
-) |>
-  sf::st_drop_geometry() |>
-  dplyr::filter(!is.na(NAME)) |>
-  dplyr::pull(hex_id)
-se_hex[se_hex$hex_id %in% stray_hex_ids, se_count_cols] <- NA_real_
+# Hexes with no real SE data — only the newly-added ones; overlap_hex_ids
+# keep real (if small) values, so they're not masked as "no data" below.
+no_se_data_hex_ids <- new_hex_ids
 
-# Hexes with no real SE data at all — real (pre-existing stray) or newly
-# added. Used below to force Density/Diversity to NA regardless of county.
-no_se_data_hex_ids <- c(new_hex_ids, stray_hex_ids)
+# ── TAZ SE Data Import: real USTM SE 2025 data for expansion areas ─────────────
+# Fills new_hex_sf (not se_hex — a pre-existing WFRC row is structurally
+# unreachable here) with real counts, area-weighted from USTM TAZs. Plain
+# area-weighted: assumes SE is spread evenly within each TAZ.
+
+ustm_taz_shp <- sf::read_sf(file.path(root, "_data/ustm_20260805/TAZ/TAZ.shp")) |>
+  sf::st_make_valid() |>
+  sf::st_transform(hex_crs)
+
+taz_value_cols <- c(names(USTM_FIELD_MAP), "residential_units")
+
+taz_results <- purrr::map(EXPANSION_AREAS, \(area) {
+  se_combined <- purrr::map(area$taz_se_sources, \(s) load_ustm_se(s$path, s$county_filter)) |>
+    dplyr::bind_rows()
+
+  # Source = the full county's TAZs, not just ones inside the boundary — a
+  # boundary-edge TAZ can have its own centroid just outside while still
+  # covering a target hex just inside. Only the target hexes are boundary-scoped.
+  taz_joined <- ustm_taz_shp |>
+    dplyr::filter(toupper(CO_NAME) == toupper(area$in_county)) |>
+    dplyr::inner_join(se_combined, by = "CO_TAZID")
+
+  boundary <- regional_boundary_components |>
+    dplyr::filter(PlanOrg == area$plan_org, InCounty == area$in_county, Label == area$label) |>
+    sf::st_transform(hex_crs) |>
+    sf::st_make_valid()
+
+  target_hexes <- new_hex_sf |>
+    dplyr::filter(lengths(sf::st_intersects(sf::st_centroid(new_hex_sf["hex_id"]), boundary)) > 0) |>
+    dplyr::select(hex_id) |>
+    sf::st_make_valid()
+
+  interpolate_taz_to_hex(taz_joined, target_hexes, taz_value_cols)
+}) |>
+  dplyr::bind_rows()
+
+# rows_update() can't operate directly on an sf object (its `[` method keeps
+# geometry sticky, which rows_update's internal column selection rejects) —
+# drop geometry, update, reattach.
+new_hex_geom <- sf::st_geometry(new_hex_sf)
+new_hex_sf <- new_hex_sf |>
+  sf::st_drop_geometry() |>
+  dplyr::rows_update(taz_results, by = "hex_id") |>
+  sf::st_sf(geometry = new_hex_geom)
+names(new_hex_sf)[names(new_hex_sf) == "geometry"] <- sf_col
+sf::st_geometry(new_hex_sf) <- sf_col
 
 se_hex  <- dplyr::bind_rows(se_hex, new_hex_sf)
 hex_ids <- se_hex$hex_id
 
+# Recompute from the current NA state — a few hexes may still lack data
+# (e.g. zero TAZ overlap right at a boundary edge) and need the fallback below.
+no_se_data_hex_ids <- se_hex$hex_id[is.na(se_hex$households)]
+
 # ── Demographics fallback weight for expansion hexes ────────────────────────
-# The household-weighted income interpolation below needs a weight surface,
-# which expansion hexes don't have (no `households` yet). Reuse 2020 Census
-# block occupied-housing-unit counts (H1_002N) — cached from this project's
-# earlier income-interpolation method — as a proxy weight, only for these
-# hexes; `households` itself stays NA so Density/Diversity remain correctly
-# blocked. Area-weighted (st_interpolate_aw), not interpolate_pw, because
-# blocks are already the finest Census geography available — there's no
-# finer population surface left to weight them by.
-blocks_hh <- sf::read_sf(file.path(root, "_data/remote/demographics/blocks_2020_hh.gpkg")) |>
-  sf::st_transform(hex_crs) |>
-  sf::st_make_valid()
+# The income interpolation below needs a household weight surface, which any
+# still-NA hex doesn't have. Fall back to 2020 Census block occupied-housing
+# counts (H1_002N) as a proxy — `households` itself stays NA, so Density/
+# Diversity remain correctly blocked. Area-weighted, not interpolate_pw,
+# since blocks are already the finest Census geography available.
+se_hex <- dplyr::mutate(se_hex, hh_weight = households)
 
-proxy_target <- sf::st_make_valid(se_hex[se_hex$hex_id %in% no_se_data_hex_ids, "hex_id"])
-proxy_hh     <- sf::st_interpolate_aw(blocks_hh["value"], proxy_target, extensive = TRUE)
+# Guarded: only runs if TAZ interpolation left hexes uncovered (e.g. zero
+# overlap at a boundary edge) — st_interpolate_aw() errors on an empty target.
+if (length(no_se_data_hex_ids) > 0L) {
+  blocks_hh <- sf::read_sf(file.path(root, "_data/remote/demographics/blocks_2020_hh.gpkg")) |>
+    sf::st_transform(hex_crs) |>
+    sf::st_make_valid()
 
-se_hex$hh_weight <- se_hex$households
-se_hex$hh_weight[match(proxy_target$hex_id, se_hex$hex_id)] <- proxy_hh$value
+  proxy_target <- se_hex |> dplyr::filter(hex_id %in% no_se_data_hex_ids) |>
+    dplyr::select(hex_id) |> sf::st_make_valid()
+  proxy_hh <- sf::st_interpolate_aw(blocks_hh["value"], proxy_target, extensive = TRUE)
+
+  proxy_df <- tibble::tibble(hex_id = proxy_target$hex_id, hh_weight_proxy = proxy_hh$value)
+  se_hex <- se_hex |>
+    dplyr::left_join(proxy_df, by = "hex_id") |>
+    dplyr::mutate(hh_weight = dplyr::coalesce(hh_weight, hh_weight_proxy)) |>
+    dplyr::select(-hh_weight_proxy)
+}
 
 # ── Destinations: shared setup (used by both L9 and L8) ───────────────────────
 
@@ -467,9 +584,7 @@ res_s   <- smooth_by_neighbors(hex_ids, se_hex$residential_units, neighbor_index
 jobs_s  <- smooth_by_neighbors(hex_ids, se_hex$total_jobs,        neighbor_index)
 density <- (res_s + jobs_s / J2H) / L9_HEX_AREA_SQMI
 
-# Flag hexes in Tooele Valley, Morgan, Summit, and Wasatch counties as NA
-# TODO: pending TBD methodology for these areas per supervisor guidance
-# inspect names(utah_counties) to confirm the county name field before running
+# Flag hexes in na_county_names (no SE data, pending methodology) as NA
 na_hex_ids <- sf::st_join(
   sf::st_centroid(se_hex["hex_id"]),
   sf::st_transform(utah_counties["NAME"], hex_crs),
@@ -481,13 +596,13 @@ na_hex_ids <- sf::st_join(
 # Union in expansion/stray hexes explicitly — they may fall in a county (e.g.
 # Box Elder) not otherwise in na_county_names, since only part of it lacks SE data.
 na_hex_ids <- union(na_hex_ids, no_se_data_hex_ids)
-density[hex_ids %in% na_hex_ids] <- NA_real_
+density <- dplyr::if_else(hex_ids %in% na_hex_ids, NA_real_, density)
 
 ## Diversity
 hh_s  <- smooth_by_neighbors(hex_ids, se_hex$households, neighbor_index)
 emp_s <- smooth_by_neighbors(hex_ids, se_hex$total_jobs,  neighbor_index)
 hw    <- hh_s * J2H
-diversity <- ifelse(hw == 0 & emp_s == 0, NA_real_, pmin(hw, emp_s) / pmax(hw, emp_s))
+diversity <- dplyr::if_else(hw == 0 & emp_s == 0, NA_real_, pmin(hw, emp_s) / pmax(hw, emp_s))
 
 ## Design — join L9 children expanded from int_l8
 design_raw <- tibble::tibble(hex_id = hex_ids) |>
@@ -606,43 +721,46 @@ transit_dist     <- smooth_by_neighbors(hex_ids, transit_dist_raw, neighbor_inde
 
 ## Raw (unsmoothed) L9 values
 density_raw   <- (se_hex$residential_units + se_hex$total_jobs / J2H) / L9_HEX_AREA_SQMI
-density_raw[hex_ids %in% na_hex_ids] <- NA_real_
+density_raw   <- dplyr::if_else(hex_ids %in% na_hex_ids, NA_real_, density_raw)
 
 hw_raw        <- se_hex$households * J2H
-diversity_raw <- ifelse(hw_raw == 0 & se_hex$total_jobs == 0, NA_real_,
+diversity_raw <- dplyr::if_else(hw_raw == 0 & se_hex$total_jobs == 0, NA_real_,
   pmin(hw_raw, se_hex$total_jobs) / pmax(hw_raw, se_hex$total_jobs))
 
-destinations_raw <- raw_destinations  # alias: raw_destinations computed at line 310
+destinations_raw <- raw_destinations  # alias: raw_destinations computed in the Destinations section above
 
 ## Assemble L9
-se_hex$density                   <- density
-se_hex$density_raw               <- density_raw
-se_hex$diversity                 <- diversity
-se_hex$diversity_raw             <- diversity_raw
-se_hex$design                    <- design
-se_hex$design_raw                <- design_raw
-se_hex$destinations              <- destinations
-se_hex$destinations_raw          <- destinations_raw
-se_hex$destinations_center       <- destinations_center
-se_hex$destinations_center_raw   <- wc_score
-se_hex$destinations_health       <- destinations_health
-se_hex$destinations_health_raw   <- healthcare_flag
-se_hex$destinations_school       <- destinations_school
-se_hex$destinations_school_raw   <- highschool_flag
-se_hex$destinations_grocery      <- destinations_grocery
-se_hex$destinations_grocery_raw  <- grocery_flag
-se_hex$destinations_cityhall     <- destinations_cityhall
-se_hex$destinations_cityhall_raw <- cityhall_flag
-se_hex$destinations_park         <- destinations_park
-se_hex$destinations_park_raw     <- park_flag
-se_hex$destinations_ems          <- destinations_ems
-se_hex$destinations_ems_raw      <- ems_flag
-se_hex$demographics              <- demographics
-se_hex$demographics_raw          <- demographics_raw
-se_hex$transit_dist              <- transit_dist
-se_hex$transit_dist_raw          <- transit_dist_raw
-se_hex$income_diversity          <- income_diversity
-se_hex$income_diversity_raw      <- income_diversity_raw
+se_hex <- dplyr::mutate(
+  se_hex,
+  density                   = density,
+  density_raw               = density_raw,
+  diversity                 = diversity,
+  diversity_raw             = diversity_raw,
+  design                    = design,
+  design_raw                = design_raw,
+  destinations              = destinations,
+  destinations_raw          = destinations_raw,
+  destinations_center       = destinations_center,
+  destinations_center_raw   = wc_score,
+  destinations_health       = destinations_health,
+  destinations_health_raw   = healthcare_flag,
+  destinations_school       = destinations_school,
+  destinations_school_raw   = highschool_flag,
+  destinations_grocery      = destinations_grocery,
+  destinations_grocery_raw  = grocery_flag,
+  destinations_cityhall     = destinations_cityhall,
+  destinations_cityhall_raw = cityhall_flag,
+  destinations_park         = destinations_park,
+  destinations_park_raw     = park_flag,
+  destinations_ems          = destinations_ems,
+  destinations_ems_raw      = ems_flag,
+  demographics              = demographics,
+  demographics_raw          = demographics_raw,
+  transit_dist              = transit_dist,
+  transit_dist_raw          = transit_dist_raw,
+  income_diversity          = income_diversity,
+  income_diversity_raw      = income_diversity_raw
+)
 
 # ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
 
@@ -667,7 +785,7 @@ se_l8_data <- sf::st_drop_geometry(se_hex) |>
 # Build true H3 L8 hex boundaries: vertex convex hull of each cell's 6 vertices
 h8_geom <- h3o::h3_from_strings(se_l8_data$hex_id) |>
   h3o::h3_to_vertexes() |>
-  lapply(sf::st_convex_hull) |>
+  purrr::map(sf::st_convex_hull) |>
   sf::st_sfc(crs = 4326L) |>
   sf::st_transform(hex_crs)
 
@@ -693,13 +811,13 @@ na_hex_ids <- sf::st_join(
 # summed counts would silently undercount rather than honestly read NA.
 no_se_data_hex_ids_l8 <- unique(h8_ids_vec[hex_ids %in% no_se_data_hex_ids])
 na_hex_ids <- union(na_hex_ids, no_se_data_hex_ids_l8)
-density_l8[h8_ids %in% na_hex_ids] <- NA_real_
+density_l8 <- dplyr::if_else(h8_ids %in% na_hex_ids, NA_real_, density_l8)
 
 ## Diversity (L8)
 hh_s_l8  <- smooth_by_neighbors(h8_ids, se_l8$households, neighbor_index_l8)
 emp_s_l8 <- smooth_by_neighbors(h8_ids, se_l8$total_jobs,  neighbor_index_l8)
 hw_l8    <- hh_s_l8 * J2H
-diversity_l8 <- ifelse(hw_l8 == 0 & emp_s_l8 == 0, NA_real_, pmin(hw_l8, emp_s_l8) / pmax(hw_l8, emp_s_l8))
+diversity_l8 <- dplyr::if_else(hw_l8 == 0 & emp_s_l8 == 0, NA_real_, pmin(hw_l8, emp_s_l8) / pmax(hw_l8, emp_s_l8))
 
 ## Design (L8) — direct join; int_l8 is already at L8 resolution
 design_raw_l8 <- tibble::tibble(hex_id = h8_ids) |>
@@ -796,60 +914,59 @@ transit_dist_l8     <- smooth_by_neighbors(h8_ids, transit_dist_raw_l8, neighbor
 
 ## Raw (unsmoothed) L8 values
 density_raw_l8   <- (se_l8$residential_units + se_l8$total_jobs / J2H) / L8_HEX_AREA_SQMI
-density_raw_l8[h8_ids %in% na_hex_ids] <- NA_real_
+density_raw_l8   <- dplyr::if_else(h8_ids %in% na_hex_ids, NA_real_, density_raw_l8)
 
 hw_raw_l8        <- se_l8$households * J2H
-diversity_raw_l8 <- ifelse(hw_raw_l8 == 0 & se_l8$total_jobs == 0, NA_real_,
+diversity_raw_l8 <- dplyr::if_else(hw_raw_l8 == 0 & se_l8$total_jobs == 0, NA_real_,
   pmin(hw_raw_l8, se_l8$total_jobs) / pmax(hw_raw_l8, se_l8$total_jobs))
 
 ## Assemble L8
-se_l8$density                    <- density_l8
-se_l8$density_raw                <- density_raw_l8
-se_l8$diversity                  <- diversity_l8
-se_l8$diversity_raw              <- diversity_raw_l8
-se_l8$design                     <- design_l8
-se_l8$design_raw                 <- design_raw_l8
-se_l8$destinations               <- destinations_l8
-se_l8$destinations_raw           <- raw_destinations_l8
-se_l8$destinations_center        <- destinations_center_l8
-se_l8$destinations_center_raw    <- wc_score_l8
-se_l8$destinations_health        <- destinations_health_l8
-se_l8$destinations_health_raw    <- healthcare_flag_l8
-se_l8$destinations_school        <- destinations_school_l8
-se_l8$destinations_school_raw    <- highschool_flag_l8
-se_l8$destinations_grocery       <- destinations_grocery_l8
-se_l8$destinations_grocery_raw   <- grocery_flag_l8
-se_l8$destinations_cityhall      <- destinations_cityhall_l8
-se_l8$destinations_cityhall_raw  <- cityhall_flag_l8
-se_l8$destinations_park          <- destinations_park_l8
-se_l8$destinations_park_raw      <- park_flag_l8
-se_l8$destinations_ems           <- destinations_ems_l8
-se_l8$destinations_ems_raw       <- ems_flag_l8
-se_l8$demographics               <- demographics_l8
-se_l8$demographics_raw           <- demographics_raw_l8
-se_l8$transit_dist               <- transit_dist_l8
-se_l8$transit_dist_raw           <- transit_dist_raw_l8
-se_l8$income_diversity           <- income_diversity_l8
-se_l8$income_diversity_raw       <- income_diversity_raw_l8
+se_l8 <- dplyr::mutate(
+  se_l8,
+  density                    = density_l8,
+  density_raw                = density_raw_l8,
+  diversity                  = diversity_l8,
+  diversity_raw              = diversity_raw_l8,
+  design                     = design_l8,
+  design_raw                 = design_raw_l8,
+  destinations               = destinations_l8,
+  destinations_raw           = raw_destinations_l8,
+  destinations_center        = destinations_center_l8,
+  destinations_center_raw    = wc_score_l8,
+  destinations_health        = destinations_health_l8,
+  destinations_health_raw    = healthcare_flag_l8,
+  destinations_school        = destinations_school_l8,
+  destinations_school_raw    = highschool_flag_l8,
+  destinations_grocery       = destinations_grocery_l8,
+  destinations_grocery_raw   = grocery_flag_l8,
+  destinations_cityhall      = destinations_cityhall_l8,
+  destinations_cityhall_raw  = cityhall_flag_l8,
+  destinations_park          = destinations_park_l8,
+  destinations_park_raw      = park_flag_l8,
+  destinations_ems           = destinations_ems_l8,
+  destinations_ems_raw       = ems_flag_l8,
+  demographics               = demographics_l8,
+  demographics_raw           = demographics_raw_l8,
+  transit_dist                = transit_dist_l8,
+  transit_dist_raw            = transit_dist_raw_l8,
+  income_diversity            = income_diversity_l8,
+  income_diversity_raw        = income_diversity_raw_l8
+)
 
 # Destination scores are logically bounded [0, 1]; clamp any floating-point
 # overshoot before writing to metadata / PMTiles.
-for (.col in grep("^destinations", names(se_l8), value = TRUE)) {
-  se_l8[[.col]] <- pmax(0, pmin(1, se_l8[[.col]]))
-}
-rm(.col)
+se_l8 <- dplyr::mutate(se_l8, dplyr::across(dplyr::starts_with("destinations"), ~ pmax(0, pmin(1, .x))))
 
 # ── Visualization: Diversity — smoothed vs raw (L9) ───────────────────────────
 
-se_hex_4326 <- sf::st_transform(se_hex, 4326L)
+se_hex_4326 <- se_hex |>
+  sf::st_transform(4326L) |>
+  dplyr::mutate(tooltip = sprintf(
+    "<b>Diversity (smoothed):</b> %.2f<br><b>Diversity (raw):</b> %.2f<br><b>HH:</b> %.0f<br><b>Jobs:</b> %.0f",
+    diversity, diversity_raw, households, total_jobs
+  ))
 
-se_hex_4326$tooltip <- sprintf(
-  "<b>Diversity (smoothed):</b> %.2f<br><b>Diversity (raw):</b> %.2f<br><b>HH:</b> %.0f<br><b>Jobs:</b> %.0f",
-  se_hex$diversity, se_hex$diversity_raw, se_hex$households, se_hex$total_jobs
-)
-
-se_hex_raw_4326           <- se_hex_4326
-se_hex_raw_4326$diversity <- se_hex$diversity_raw
+se_hex_raw_4326 <- dplyr::mutate(se_hex_4326, diversity = diversity_raw)
 
 div_colors <- c("#ffffcc","#ffeda0","#fed976","#feb24c","#fd8d3c",
                 "#fc4e2a","#e31a1c","#bd0026","#800026")
@@ -1045,7 +1162,7 @@ compute_level_breaks <- function(sf_obj) {
     "destinations_grocery", "destinations_cityhall", "destinations_park", "destinations_ems",
     "demographics", "transit_dist", "income_diversity"
   )
-  paired <- lapply(setNames(paired_vars, paired_vars), function(v) {
+  paired <- purrr::map(purrr::set_names(paired_vars), \(v) {
     vals <- c(df[[v]], df[[paste0(v, "_raw")]])
     # Destination scores are logically [0, 1]; clamp any floating-point overshoot.
     if (startsWith(v, "destinations")) vals <- pmax(0, pmin(1, vals))
@@ -1053,9 +1170,7 @@ compute_level_breaks <- function(sf_obj) {
   })
 
   # Raw SE counts: single series, so the scale and histogram come from one column.
-  counts <- lapply(setNames(se_count_cols, se_count_cols), function(v) {
-    break_stats(df[[v]], df[[v]])
-  })
+  counts <- purrr::map(purrr::set_names(se_count_cols), \(v) break_stats(df[[v]], df[[v]]))
 
   c(paired, counts)
 }

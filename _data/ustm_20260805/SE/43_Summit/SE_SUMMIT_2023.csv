@@ -1,0 +1,303 @@
+;CO_TAZID,CO_IDX,TOTHH,HHPOP,HHSize,TOTEMP,RETEMP,INDEMP,OTHEMP,ALLEMP,RETL,FOOD,MANU,WSLE,OFFI,GVED,HLTH,OTHR,AGRI,MING,CONS,HBJ,USTM_SF,USTM_MF,USTM_RV,SEC_HOME,CABIN,CONDO,HOTEL,AVGINCOME,Enrol_Elem,Enrol_Midl,Enrol_High,CO_FIPS,SUBAREAID,CO_NAME,DISTLRG,DLRG_NAME,DISTMED,DMED_NAME,DISTSML,DSML_NAME,CITY_NAME
+43001,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,183472,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43002,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43003,3,31,92,2.97,4,0,0,4,17,0,0,0,0,3,0,1,0,0,0,8,5,1,0,0,1,0,0,0,183472,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43004,4,465,1386,2.98,397,0,29,368,563,0,0,0,29,64,0,1,303,0,0,89,77,15,0,0,15,0,0,0,188706,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43005,5,385,1301,3.38,283,4,14,265,388,4,0,6,8,101,0,54,110,0,0,41,64,79,0,0,79,0,0,0,296401,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43006,6,0,0,0,329,29,94,206,398,29,0,0,94,11,133,14,48,0,0,69,0,0,0,0,0,0,0,0,300000,392,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43007,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,162366,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43008,8,0,0,0,685,23,78,584,688,10,13,0,78,394,0,45,145,0,0,3,0,0,0,0,0,0,0,0,158056,7,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43009,9,587,1667,2.84,179,4,5,170,497,3,1,0,5,85,0,29,56,0,0,221,97,27,0,0,27,0,0,0,175714,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43010,10,345,1114,3.23,230,3,28,199,298,3,0,0,28,88,2,4,105,0,0,11,57,86,0,0,86,0,0,0,200068,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43011,11,81,209,2.58,27,10,0,17,41,0,10,0,0,8,0,1,8,0,0,1,13,22,0,0,22,0,0,0,165445,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43012,12,17,44,2.59,3,0,0,3,6,0,0,0,0,3,0,0,0,0,0,0,3,13,0,0,13,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43013,13,38,100,2.63,1,0,1,0,12,0,0,1,0,0,0,0,0,0,0,5,6,27,0,0,27,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43014,14,31,80,2.58,83,0,0,83,88,0,0,0,0,0,0,5,78,0,0,0,5,23,0,0,23,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43015,15,30,78,2.6,14,0,6,8,22,0,0,0,6,8,0,0,0,0,0,3,5,22,0,0,22,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43016,16,53,139,2.62,12,0,3,9,61,0,0,0,3,5,0,1,3,0,0,40,9,39,0,0,39,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43017,17,104,269,2.59,427,0,1,426,444,0,0,1,0,0,0,0,426,0,0,0,17,28,0,0,28,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43018,18,16,42,2.63,13,0,0,13,20,0,0,0,0,0,13,0,0,0,0,4,3,11,0,0,11,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43019,19,43,111,2.58,25,0,1,24,32,0,0,0,1,11,0,0,13,0,0,0,7,32,0,0,32,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43020,20,63,163,2.59,93,0,0,93,124,0,0,0,0,13,0,0,80,0,0,21,10,46,0,0,46,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43021,21,17,44,2.59,303,54,34,215,492,10,44,25,9,3,6,40,166,0,0,186,3,14,0,0,14,0,0,0,167778,32,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43022,22,0,0,0,66,13,0,53,66,13,0,0,0,53,0,0,0,0,0,0,0,0,0,0,0,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43023,23,68,176,2.59,28,0,0,28,67,0,0,0,0,8,0,20,0,0,0,28,11,19,0,0,19,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43024,24,93,239,2.57,93,50,3,40,111,0,50,0,3,13,0,3,24,0,0,3,15,25,0,0,25,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43025,25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43026,26,79,185,2.34,27,20,0,7,40,0,20,0,0,3,4,0,0,0,0,0,13,45,0,0,45,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43027,27,0,0,0,570,564,6,0,570,556,8,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43028,28,0,0,0,18,18,0,0,18,18,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43029,29,0,0,0,263,215,18,30,263,178,37,18,0,19,0,0,11,0,0,0,0,0,0,0,0,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43030,30,51,120,2.35,35,0,0,35,47,0,0,0,0,0,0,0,35,0,0,4,8,29,0,0,29,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43031,31,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43032,32,0,0,0,353,329,0,24,353,276,53,0,0,0,24,0,0,0,0,0,0,0,0,0,0,0,0,81,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43033,33,0,0,0,250,106,0,144,276,0,106,0,0,5,0,0,139,0,0,26,0,0,0,0,0,0,0,105,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43034,34,0,0,0,503,0,0,503,503,0,0,0,0,221,0,51,231,0,0,0,0,0,0,0,0,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43035,35,0,0,0,376,173,4,199,423,39,134,0,4,27,0,57,115,0,0,47,0,0,0,0,0,0,0,0,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43036,36,88,217,2.47,1867,607,311,949,1907,323,284,162,149,261,87,84,517,0,0,25,15,27,97,0,27,0,97,198,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43037,37,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43038,38,398,878,2.21,355,0,3,352,456,0,0,0,3,250,0,0,102,0,0,35,66,125,272,0,125,0,272,0,107102,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43039,39,373,918,2.46,1347,755,43,549,1417,424,331,12,31,226,2,34,287,0,0,8,62,115,217,0,115,0,217,0,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43040,40,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,193754,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43041,41,9,21,2.33,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,3,0,0,3,0,0,0,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43042,42,0,0,0,619,0,0,619,619,0,0,0,0,0,136,0,483,0,0,0,0,0,0,0,0,0,0,0,99373,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43043,43,122,288,2.36,62,1,8,53,83,1,0,0,8,27,4,1,21,0,0,1,20,69,12,0,69,0,12,0,104454,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43044,44,57,135,2.37,447,158,0,289,501,78,80,0,0,53,0,43,193,0,0,44,10,33,12,0,33,0,12,0,119495,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43045,45,343,822,2.4,493,13,15,465,593,13,0,1,14,114,142,5,204,0,0,43,57,52,0,0,52,0,0,0,146412,400,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43046,46,96,235,2.45,63,4,0,59,79,4,0,0,0,8,0,0,51,0,0,0,16,30,0,0,30,0,0,0,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43047,47,16,39,2.44,10,0,0,10,13,0,0,0,0,5,0,0,5,0,0,0,3,5,0,0,5,0,0,0,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43048,48,70,168,2.4,21,0,2,19,33,0,0,1,1,11,0,0,8,0,0,0,12,11,0,0,11,0,0,0,141875,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43049,49,56,139,2.48,16,5,0,11,25,5,0,0,0,3,0,0,8,0,0,0,9,18,0,0,18,0,0,0,191181,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43050,50,7,18,2.57,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,5,1,2,0,0,2,0,0,0,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43051,51,21,52,2.48,11,0,0,11,16,0,0,0,0,11,0,0,0,0,0,1,4,6,0,0,6,0,0,0,194125,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43052,52,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,107346,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43053,53,64,150,2.34,189,167,0,22,200,0,167,0,0,3,0,0,19,0,0,0,11,36,153,0,36,0,153,564,96932,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43054,54,9,30,3.33,19,0,0,19,20,0,0,0,0,0,0,0,19,0,0,0,1,5,0,0,5,0,0,0,186750,0,0,98,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43055,55,14,49,3.5,15,10,0,5,17,10,0,0,0,5,0,0,0,0,0,0,2,6,0,0,6,0,0,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43056,56,39,139,3.56,5,0,0,5,12,0,0,0,0,0,0,0,5,0,0,0,7,20,0,0,20,0,0,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43057,57,0,0,0,3,0,0,3,3,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43058,58,16,56,3.5,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,3,8,0,0,8,0,0,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43059,59,21,50,2.38,1153,705,0,448,1186,5,700,0,0,0,0,0,448,0,0,29,4,76,91,0,76,0,91,1180,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43060,60,12,28,2.33,8,0,0,8,10,0,0,0,0,0,0,0,8,0,0,0,2,40,61,0,40,0,61,0,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43061,61,7,18,2.57,4,0,1,3,5,0,0,0,1,0,0,0,3,0,0,0,1,30,33,0,30,0,33,0,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43062,62,7,18,2.57,48,0,0,48,49,0,0,0,0,5,0,0,43,0,0,0,1,28,149,0,28,0,149,0,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43063,63,31,73,2.35,30,14,0,16,35,14,0,0,0,0,0,0,16,0,0,0,5,108,0,0,108,0,0,0,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43064,64,71,252,3.55,50,0,2,48,72,0,0,1,1,0,0,0,48,0,0,10,12,36,35,0,36,0,35,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43065,65,1,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43066,66,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,3,0,0,0,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43067,67,7,15,2.14,32,0,0,32,33,0,0,0,0,0,0,0,32,0,0,0,1,2,0,0,2,0,0,0,89776,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43068,68,44,103,2.34,182,0,0,182,199,0,0,0,0,13,0,0,169,0,0,10,7,162,0,0,162,0,0,0,213754,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43069,69,157,312,1.99,65,0,0,65,95,0,0,0,0,59,0,1,5,0,0,4,26,40,0,0,40,0,0,0,90661,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43070,70,85,301,3.54,20,1,0,19,34,1,0,0,0,5,6,0,8,0,0,0,14,43,0,0,43,0,0,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43071,71,163,418,2.56,34,6,3,25,62,6,0,0,3,11,2,1,11,0,0,1,27,67,0,0,67,0,0,0,219315,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43072,72,35,90,2.57,3,0,0,3,9,0,0,0,0,3,0,0,0,0,0,0,6,14,0,0,14,0,0,0,232212,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43073,73,141,363,2.57,13,0,0,13,42,0,0,0,0,0,0,0,13,0,0,6,23,59,0,0,59,0,0,0,232212,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43074,74,196,502,2.56,610,0,3,607,643,0,0,0,3,5,39,0,563,0,0,1,32,82,0,0,82,0,0,0,229157,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43075,75,155,247,1.59,398,0,4,394,424,0,0,0,4,21,0,0,373,0,0,0,26,13,0,0,13,0,0,0,134324,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43076,76,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43077,77,199,395,1.98,25,4,0,21,62,4,0,0,0,5,0,0,16,0,0,4,33,51,0,0,51,0,0,0,89776,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43078,78,9,14,1.56,551,384,33,134,568,181,203,0,33,29,0,11,94,0,0,16,1,1,0,0,1,0,0,125,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43079,79,49,78,1.59,164,41,0,123,172,0,41,0,0,43,0,24,56,0,0,0,8,4,0,0,4,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43080,80,23,37,1.61,13,0,0,13,17,0,0,0,0,0,0,0,13,0,0,0,4,2,0,0,2,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43081,81,27,42,1.56,20,0,0,20,30,0,0,0,0,3,0,17,0,0,0,6,4,2,0,0,2,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43082,82,19,30,1.58,11,0,0,11,14,0,0,0,0,8,0,0,3,0,0,0,3,2,0,0,2,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43083,83,0,0,0,447,0,0,447,447,0,0,0,0,0,447,0,0,0,0,0,0,0,0,0,0,0,0,0,55000,383,741,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43084,84,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43085,85,89,142,1.6,563,74,0,489,594,28,46,0,0,8,206,7,268,0,0,16,15,7,0,0,7,0,0,0,55000,0,0,1175,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43086,86,135,246,1.82,241,59,18,164,263,6,53,0,18,0,76,0,88,0,0,0,22,235,121,0,235,0,121,0,101066,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43087,87,150,298,1.99,316,180,0,136,341,3,177,0,0,48,0,0,88,0,0,0,25,38,200,0,38,0,200,0,89776,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43088,88,41,139,3.39,641,183,16,442,652,116,67,5,11,24,0,0,418,0,0,4,7,21,31,0,21,0,31,154,187862,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43089,89,86,289,3.36,686,221,38,427,741,35,186,35,3,3,0,124,300,0,0,41,14,43,14,0,43,0,14,0,187862,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43090,90,90,303,3.37,1410,216,27,1167,1464,69,147,0,27,411,11,29,716,0,0,39,15,44,325,0,44,0,325,21,187862,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43091,91,45,150,3.33,1226,145,5,1076,1296,25,120,5,0,405,50,136,485,0,0,63,7,22,0,0,22,0,0,209,187862,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43092,92,208,698,3.36,190,0,10,180,265,0,0,0,10,3,0,0,177,0,0,40,35,103,216,0,103,0,216,0,187862,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43093,93,146,488,3.34,147,0,5,142,214,0,0,0,5,27,0,0,115,0,0,43,24,72,0,0,72,0,0,0,187862,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43094,94,0,0,0,255,108,0,147,260,83,25,0,0,0,0,0,147,0,0,5,0,0,34,0,0,0,34,0,110156,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43095,95,0,0,0,377,6,121,250,385,6,0,0,121,21,0,65,164,0,0,8,0,0,0,0,0,0,0,0,187862,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43096,96,31,89,2.87,188,0,0,188,193,0,0,0,0,11,0,0,177,0,0,0,5,24,98,0,24,0,98,0,131127,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43097,97,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,17,0,0,0,17,0,131964,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43098,98,3,6,2,309,165,2,142,316,35,130,2,0,3,0,5,134,0,0,6,1,5,416,0,5,0,416,54,131964,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43099,99,141,257,1.82,1480,80,3,1397,1551,3,77,0,3,43,0,3,1351,0,0,48,23,246,55,0,246,0,55,16,131964,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43100,100,66,120,1.82,0,0,0,0,11,0,0,0,0,0,0,0,0,0,0,0,11,115,20,0,115,0,20,16,117132,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43101,101,74,214,2.89,74,13,0,61,86,13,0,0,0,13,0,0,48,0,0,0,12,57,105,0,57,0,105,0,129962,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43102,102,88,254,2.89,604,487,12,105,619,87,400,12,0,3,0,0,102,0,0,0,15,68,76,0,68,0,76,0,130536,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43103,103,51,147,2.88,24,0,0,24,32,0,0,0,0,8,0,0,16,0,0,0,8,40,0,0,40,0,0,0,130536,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43104,104,76,217,2.86,60,23,0,37,73,1,22,0,0,5,0,0,32,0,0,0,13,58,0,0,58,0,0,0,123226,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43105,105,172,447,2.6,26,0,0,26,55,0,0,0,0,5,0,0,21,0,0,0,29,315,210,0,315,0,210,0,61909,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43106,106,10,17,1.7,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,15,0,0,15,0,0,0,131964,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43107,107,18,29,1.61,5,0,2,3,17,0,0,2,0,3,0,0,0,0,0,9,3,160,0,0,160,0,0,0,127666,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43108,108,70,128,1.83,263,131,24,108,275,5,126,0,24,69,0,1,38,0,0,0,12,124,0,0,124,0,0,12,131964,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43109,109,10,15,1.5,2598,1537,23,1038,2628,377,1160,5,18,264,356,0,418,0,0,28,2,78,0,0,78,0,0,0,67500,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43110,110,10,15,1.5,12,1,0,11,14,1,0,0,0,8,0,0,3,0,0,0,2,88,59,0,88,0,59,0,67500,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43111,111,107,309,2.89,11,0,0,11,30,0,0,0,0,0,0,0,11,0,0,1,18,82,0,0,82,0,0,0,130536,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43112,112,26,41,1.58,2642,314,3,2325,2646,3,311,0,3,11,0,0,2314,0,0,0,4,214,405,0,214,0,405,177,67500,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43113,113,21,34,1.62,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,4,181,200,0,181,0,200,0,67500,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43114,114,27,43,1.59,8,0,0,8,12,0,0,0,0,5,0,0,3,0,0,0,4,226,50,0,226,0,50,0,67500,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43115,115,6,12,2,387,371,0,16,388,0,371,0,0,16,0,0,0,0,0,0,1,11,96,0,11,0,96,142,131964,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43116,116,13,21,1.62,11,0,0,11,13,0,0,0,0,8,0,0,3,0,0,0,2,103,283,0,103,0,283,0,67500,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43117,117,31,50,1.61,705,652,0,53,710,23,629,0,0,13,0,0,40,0,0,0,5,261,617,0,261,0,617,132,67500,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43118,118,197,737,3.74,162,33,8,121,214,5,28,4,4,27,0,0,94,0,3,16,33,7,0,0,7,0,0,0,188958,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43119,119,104,391,3.76,99,0,5,94,131,0,0,0,5,11,0,5,78,0,0,15,17,4,0,0,4,0,0,0,188958,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43120,120,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43121,121,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43122,122,168,410,2.44,52,0,3,49,80,0,0,0,3,29,0,1,19,0,0,0,28,241,0,0,241,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43123,123,88,215,2.44,902,3,3,896,988,3,0,0,3,11,0,0,885,0,3,68,15,125,0,0,125,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43124,124,32,78,2.44,12,0,1,11,17,0,0,0,1,0,0,0,11,0,0,0,5,46,0,0,46,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43125,125,108,407,3.77,708,0,3,705,729,0,0,0,3,19,0,0,686,0,3,0,18,4,0,0,4,0,0,0,188958,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43126,126,26,96,3.69,115,0,0,115,119,0,0,0,0,3,112,0,0,0,0,0,4,1,0,0,1,0,0,0,188958,360,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43127,127,201,753,3.75,111,0,1,110,162,0,0,0,1,59,0,0,51,0,0,18,33,7,0,0,7,0,0,0,188958,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43128,128,0,0,0,414,135,154,125,545,48,87,89,65,83,33,4,5,0,0,131,0,0,0,0,0,0,0,0,140668,55,57,47,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43129,129,95,355,3.74,13,0,0,13,40,0,0,0,0,13,0,0,0,0,0,11,16,3,0,0,3,0,0,0,188958,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43130,130,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43131,131,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43132,132,19,47,2.47,38,0,0,38,75,0,0,0,0,27,0,0,11,0,0,34,3,27,0,0,27,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43133,133,47,114,2.43,3,0,0,3,11,0,0,0,0,3,0,0,0,0,0,0,8,68,0,0,68,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43134,134,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,188828,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43135,135,0,0,0,1181,0,16,1165,1181,0,0,16,0,43,0,835,287,0,0,0,0,0,0,0,0,0,0,0,186750,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43136,136,0,0,0,136,0,0,136,136,0,0,0,0,0,0,136,0,0,0,0,0,0,0,0,0,0,0,0,63783,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43137,137,0,0,0,236,0,99,137,236,0,0,80,19,0,0,0,137,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43138,138,1,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43139,139,0,0,0,3,0,0,3,3,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43140,140,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144606,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43141,141,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43142,142,50,130,2.6,7,0,1,6,20,0,0,0,1,3,0,0,3,0,0,5,8,93,0,0,93,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43143,143,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43144,144,1,3,3,88,0,0,88,166,0,0,0,0,0,0,0,88,0,78,0,0,1,0,0,1,0,0,0,140668,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43145,145,12,29,2.42,4,0,4,0,16,0,0,0,4,0,0,0,0,0,0,10,2,18,0,0,18,0,0,0,125881,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43146,146,63,237,3.76,88,0,7,81,523,0,0,7,0,3,0,0,78,422,0,3,10,2,0,0,2,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43147,147,36,137,3.81,18,0,0,18,127,0,0,0,0,16,2,0,0,100,0,3,6,1,0,0,1,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43148,148,38,137,3.61,1,0,0,1,8,0,0,0,0,0,0,1,0,0,0,1,6,4,0,0,4,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43149,149,28,99,3.54,1,0,1,0,49,0,0,1,0,0,0,0,0,0,0,43,5,3,0,0,3,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43150,150,56,202,3.61,21,0,0,21,45,0,0,0,0,0,0,0,21,0,0,15,9,5,0,0,5,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,127,Oakley,Oakley
+43151,151,56,202,3.61,216,0,0,216,331,0,0,0,0,3,26,187,0,0,0,106,9,5,0,0,5,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,127,Oakley,Oakley
+43152,152,80,286,3.58,34,31,0,3,63,0,31,0,0,0,0,3,0,0,0,16,13,8,0,0,8,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,127,Oakley,Oakley
+43153,153,134,480,3.58,8,1,4,3,33,0,1,0,4,0,0,0,3,0,0,3,22,13,0,0,13,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,127,Oakley,Oakley
+43154,154,33,114,3.45,3,0,0,3,27,0,0,0,0,0,0,0,3,0,0,19,5,21,0,0,21,0,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,127,Oakley,Oakley
+43155,155,33,114,3.45,4,0,4,0,9,0,0,0,4,0,0,0,0,0,0,0,5,21,0,0,21,0,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,127,Oakley,Oakley
+43156,156,86,309,3.59,34,1,4,29,58,1,0,1,3,0,0,29,0,0,0,10,14,8,0,0,8,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,127,Oakley,Oakley
+43157,157,41,143,3.49,32,11,0,21,42,11,0,0,0,0,0,0,21,0,0,3,7,26,0,0,26,0,0,0,88558,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43158,158,70,251,3.59,6,0,0,6,46,0,0,0,0,3,0,0,3,0,0,28,12,7,0,0,7,0,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43159,159,62,213,3.44,9,3,3,3,37,3,0,2,1,3,0,0,0,0,0,18,10,38,0,0,38,0,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43160,160,15,56,3.73,32,0,27,5,55,0,0,22,5,0,0,0,5,0,0,21,2,0,0,0,0,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43161,161,41,143,3.49,98,0,1,97,105,0,0,1,0,3,0,0,94,0,0,0,7,26,0,0,26,0,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43162,162,0,0,0,61,58,0,3,61,58,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43163,163,186,703,3.78,520,244,11,265,589,183,61,0,11,205,0,41,19,0,0,38,31,6,0,0,6,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43164,164,85,293,3.45,130,62,0,68,144,44,18,0,0,5,39,0,24,0,0,0,14,53,0,0,53,0,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43165,165,15,56,3.73,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,1,0,0,1,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43166,166,22,84,3.82,1,0,1,0,5,0,0,0,1,0,0,0,0,0,0,0,4,1,0,0,1,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43167,167,14,52,3.71,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,1,0,0,1,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43168,168,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43169,169,22,84,3.82,122,44,45,33,227,44,0,0,45,5,0,4,24,0,0,101,4,1,0,0,1,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43170,170,13,42,3.23,389,0,13,376,391,0,0,0,13,8,242,0,126,0,0,0,2,2,0,0,2,0,0,0,113250,450,476,488,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43171,171,110,361,3.28,614,0,199,415,640,0,0,198,1,5,61,0,349,0,0,8,18,16,0,0,16,0,0,0,113250,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43172,172,72,238,3.31,175,102,0,73,254,34,68,0,0,5,55,0,13,0,0,67,12,11,0,0,11,0,0,0,113250,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43173,173,11,33,3,5,0,0,5,7,0,0,0,0,5,0,0,0,0,0,0,2,10,0,0,10,0,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,142,Kamas,Kamas
+43174,174,26,84,3.23,0,0,0,0,28,0,0,0,0,0,0,0,0,0,0,24,4,4,0,0,4,0,0,0,113250,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43175,175,352,1329,3.78,121,0,31,90,259,0,0,31,0,11,0,7,72,0,0,80,58,12,0,0,12,0,0,0,120952,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,149,Francis,Francis
+43176,176,79,259,3.28,94,0,0,94,150,0,0,0,0,11,0,0,83,0,0,43,13,12,0,0,12,0,0,0,111961,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,149,Francis,Francis
+43177,177,49,152,3.1,12,0,1,11,35,0,0,1,0,11,0,0,0,0,0,15,8,52,0,0,52,0,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43178,178,43,132,3.07,40,21,0,19,51,0,21,0,0,0,0,0,19,0,0,4,7,45,0,0,45,0,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43179,179,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,113250,0,0,0,43,4,SUMMIT,2,Eastern Summit,13,South Summit,137,Summit County,Balance of Summit County
+43180,180,11,35,3.18,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,2,0,0,0,113250,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,149,Francis,Francis
+43181,181,41,137,3.34,74,0,0,74,81,0,0,0,0,0,74,0,0,0,0,0,7,6,0,0,6,0,0,0,113250,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,149,Francis,Francis
+43182,182,43,132,3.07,4,4,0,0,22,4,0,0,0,0,0,0,0,0,0,11,7,45,0,0,45,0,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,149,Francis,Francis
+43183,183,34,105,3.09,11,0,0,11,26,0,0,0,0,0,0,0,11,0,0,9,6,35,0,0,35,0,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43184,184,3,11,3.67,11,0,0,11,12,0,0,0,0,0,0,0,11,0,0,0,1,0,0,0,0,0,0,0,113250,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43185,185,29,89,3.07,31,12,0,19,46,0,12,0,0,0,0,0,19,0,0,10,5,30,6,0,30,0,6,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,6,South Summit,79,Summit County,Balance of Summit County
+43186,186,5,16,3.2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,97917,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43187,187,6,19,3.17,8,0,0,8,9,0,0,0,0,0,0,0,8,0,0,0,1,0,0,0,0,0,0,0,97917,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43188,188,21,64,3.05,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,4,5,0,0,5,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43189,189,34,100,2.94,10,9,0,1,16,9,0,0,0,0,0,1,0,0,0,0,6,0,0,0,0,0,0,0,97917,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43190,190,69,203,2.94,24,0,5,19,35,0,0,0,5,3,0,3,13,0,0,0,11,0,0,0,0,0,0,0,97917,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,104,Henefer,Henefer
+43191,191,39,118,3.03,26,22,4,0,47,0,22,4,0,0,0,0,0,0,0,14,7,3,0,0,3,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,104,Henefer,Henefer
+43192,192,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43193,193,5,16,3.2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,97917,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43194,194,192,567,2.95,46,0,6,40,86,0,0,0,6,13,24,0,3,0,0,8,32,0,0,0,0,0,0,0,97917,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,104,Henefer,Henefer
+43195,195,6,19,3.17,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,97917,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43196,196,22,67,3.05,0,0,0,0,28,0,0,0,0,0,0,0,0,0,0,24,4,6,0,0,6,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43197,197,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43198,198,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43199,199,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43200,200,3,10,3.33,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43201,201,98,293,2.99,0,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,16,135,0,0,22,113,0,0,81543,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43202,202,366,1095,2.99,723,125,31,567,952,71,54,0,31,0,404,16,147,0,0,168,61,84,0,0,84,0,0,0,78214,0,323,370,43,4,SUMMIT,2,Eastern Summit,7,North Summit,113,Coalville,Coalville
+43203,203,23,70,3.04,6,0,1,5,13,0,0,1,0,0,0,0,5,0,0,3,4,3,0,0,3,0,0,0,78214,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43204,204,6,24,4,0,0,0,0,86,0,0,0,0,0,0,0,0,0,0,85,1,0,0,0,0,0,0,303,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43205,205,1,4,4,38,38,0,0,38,8,30,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,60,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,113,Coalville,Coalville
+43206,206,308,1105,3.59,303,66,65,172,358,54,12,50,15,8,88,33,43,0,0,4,51,0,0,0,0,0,0,0,85000,348,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,113,Coalville,Coalville
+43207,207,15,53,3.53,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,85000,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,113,Coalville,Coalville
+43208,208,49,139,2.84,25,0,9,16,39,0,0,0,9,13,0,0,3,0,0,6,8,13,0,0,13,0,0,0,88828,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43209,209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,93533,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43210,210,1,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43211,211,2,6,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,109285,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43212,212,5,15,3,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43213,213,2,6,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43214,214,7,21,3,0,0,0,0,14,0,0,0,0,0,0,0,0,0,0,13,1,2,0,0,2,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43215,215,30,112,3.73,0,0,0,0,14,0,0,0,0,0,0,0,0,0,0,9,5,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43216,216,45,160,3.56,3,0,0,3,10,0,0,0,0,0,0,0,3,0,0,0,7,0,0,0,0,0,0,0,85000,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43217,217,14,39,2.79,48,0,0,48,50,0,0,0,0,0,0,0,48,0,0,0,2,4,0,0,4,0,0,0,92964,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43218,218,2,8,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43219,219,10,36,3.6,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43220,220,30,112,3.73,4,0,4,0,32,0,0,0,4,0,0,0,0,0,0,23,5,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43221,221,30,85,2.83,80,0,77,3,185,0,0,73,4,3,0,0,0,100,0,0,5,8,0,0,8,0,0,0,109335,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43222,222,12,33,2.75,8,0,0,8,28,0,0,0,0,8,0,0,0,0,0,18,2,3,0,0,3,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43223,223,7,21,3,3,0,0,3,4,0,0,0,0,3,0,0,0,0,0,0,1,2,0,0,2,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43224,224,14,52,3.71,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43225,225,10,36,3.6,0,0,0,0,27,0,0,0,0,0,0,0,0,0,0,25,2,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43226,226,24,92,3.83,63,63,0,0,86,0,63,0,0,0,0,0,0,0,0,19,4,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43227,227,45,167,3.71,13,0,0,13,60,0,0,0,0,5,0,0,8,0,0,40,7,0,0,0,0,0,0,0,81316,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43228,228,21,61,2.9,73,0,0,73,112,0,0,0,0,5,52,0,16,0,0,35,4,6,0,0,6,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43229,229,4,12,3,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43230,230,9,24,2.67,20,0,20,0,21,0,0,20,0,0,0,0,0,0,0,0,1,2,0,0,2,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43231,231,319,831,2.61,299,225,4,70,558,1,224,0,4,67,0,0,3,201,0,5,53,547,0,0,230,317,0,0,167778,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43232,232,29,70,2.41,1,0,0,1,84,0,0,0,0,0,0,1,0,60,0,18,5,24,0,0,24,0,0,0,140668,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43233,233,7,18,2.57,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,12,0,0,12,0,0,0,140668,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43234,234,2,5,2.5,7,0,0,7,7,0,0,0,0,0,7,0,0,0,0,0,0,2,0,0,2,0,0,0,140668,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43235,235,17,29,1.71,3,0,0,3,10,0,0,0,0,0,0,0,3,0,0,4,3,0,0,0,0,0,0,0,115346,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43236,236,3,6,2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,22500,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43237,237,1,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43238,238,5,13,2.6,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,3,1,8,0,0,8,0,0,0,140668,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43239,239,45,109,2.42,6,0,1,5,33,0,0,0,1,5,0,0,0,0,0,20,7,135,0,0,64,71,0,0,140668,0,0,0,43,4,SUMMIT,2,Eastern Summit,7,North Summit,79,Summit County,Balance of Summit County
+43240,240,1,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43241,241,1,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43242,242,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43243,243,1,3,3,3,0,0,3,3,0,0,0,0,0,0,0,3,0,0,0,0,5,0,0,0,5,0,0,124821,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43244,244,9,16,1.78,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,250,0,0,130,120,0,0,95200,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43245,245,44,81,1.84,0,0,0,0,7,0,0,0,0,0,0,0,0,0,0,0,7,1252,0,0,648,604,0,0,95200,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43246,246,14,50,3.57,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,6,0,0,1,5,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43247,247,7,27,3.86,46,0,0,46,47,0,0,0,0,0,0,0,46,0,0,0,1,6,0,0,1,5,0,0,100952,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43248,248,28,51,1.82,5,0,5,0,10,0,0,0,5,0,0,0,0,0,0,0,5,813,0,0,414,399,0,0,95200,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43249,249,31,106,3.42,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,1,5,63,0,0,19,44,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43250,250,35,65,1.86,8,0,0,8,18,0,0,0,0,8,0,0,0,0,0,4,6,1010,0,0,517,493,0,0,95200,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43251,251,5,10,2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,166,0,0,78,88,0,0,95200,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43252,252,1,4,4,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,142,Kamas,Kamas
+43253,253,29,99,3.41,4,0,4,0,12,0,0,4,0,0,0,0,0,0,0,3,5,18,0,0,18,0,0,0,87083,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43254,254,57,178,3.12,71,0,0,71,90,0,0,0,0,32,18,0,21,0,0,9,10,61,0,0,61,0,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43256,256,43,132,3.07,1,1,0,0,8,0,1,0,0,0,0,0,0,0,0,0,7,117,0,0,45,72,0,0,93264,0,0,0,43,4,SUMMIT,2,Eastern Summit,8,Uintas,79,Summit County,Balance of Summit County
+43257,257,0,0,0,37,5,0,32,37,5,0,0,0,0,0,0,32,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43258,258,0,0,0,16,0,0,16,16,0,0,0,0,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43259,259,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43260,260,0,0,0,365,52,265,48,365,52,0,262,3,48,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43261,261,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43262,262,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,154223,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43263,263,16,39,2.44,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,3,24,0,0,24,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43264,264,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43265,265,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43266,266,12,29,2.42,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,16,0,0,16,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43267,267,36,88,2.44,3,0,0,3,9,0,0,0,0,0,0,0,3,0,0,0,6,51,0,0,51,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43268,268,6,16,2.67,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,9,0,0,9,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43269,269,32,78,2.44,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,5,44,0,0,44,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43270,270,32,78,2.44,12,6,1,5,17,0,6,0,1,0,2,0,3,0,0,0,5,46,0,0,46,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43271,271,36,88,2.44,0,0,0,0,10,0,0,0,0,0,0,0,0,0,0,4,6,52,64,0,52,0,64,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43272,272,7,18,2.57,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,11,38,0,11,0,38,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43273,273,16,39,2.44,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,3,24,0,0,24,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43274,274,3,8,2.67,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,6,0,0,6,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43275,275,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,167778,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43276,276,0,0,0,234,234,0,0,234,234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43277,277,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43278,278,0,0,0,34,0,23,11,50,0,0,0,23,0,11,0,0,0,0,16,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43279,279,0,0,0,3,0,0,3,3,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43280,280,0,0,0,111,0,0,111,111,0,0,0,0,0,111,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43281,281,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43282,282,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43283,283,10,23,2.3,458,47,14,397,593,47,0,4,10,96,4,13,284,0,0,133,2,13,22,0,13,0,22,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43284,284,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,140668,0,0,0,43,4,SUMMIT,1,Snyderville Basin,5,Highland Promontory,79,Summit County,Balance of Summit County
+43285,285,114,294,2.58,52,0,0,52,77,0,0,0,0,11,0,1,40,0,0,6,19,31,0,0,31,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43286,286,52,135,2.6,258,0,0,258,345,0,0,0,0,5,240,5,8,0,0,78,9,14,0,0,14,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43287,287,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,158056,0,0,0,43,4,SUMMIT,1,Snyderville Basin,2,Silver Creek,79,Summit County,Balance of Summit County
+43288,288,132,319,2.42,111,0,0,111,133,0,0,0,0,0,111,0,0,0,0,0,22,5,0,0,5,0,0,0,146430,351,71,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43289,289,0,0,0,194,194,0,0,194,0,194,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,141925,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43290,290,596,1437,2.41,109,0,9,100,217,0,0,0,9,13,4,0,83,0,0,8,100,25,238,0,25,0,238,0,145240,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43291,291,0,0,0,480,188,121,171,480,125,63,110,11,64,4,57,46,0,0,0,0,0,0,0,0,0,0,0,162366,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43292,292,170,458,2.69,138,0,1,137,166,0,0,0,1,21,96,9,11,0,0,0,28,23,55,0,23,0,55,0,162366,88,30,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43293,293,79,212,2.68,23,1,3,19,36,1,0,0,3,8,0,0,11,0,0,0,13,11,0,0,11,0,0,0,187390,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43294,294,89,240,2.7,14,6,0,8,30,0,6,0,0,0,0,5,3,0,0,1,15,12,15,0,12,0,15,0,162366,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43295,295,17,46,2.71,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,3,2,4,0,2,0,4,0,162366,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43296,296,89,289,3.25,49,0,0,49,65,0,0,0,0,3,0,3,43,0,0,1,15,22,61,0,22,0,61,0,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43297,297,0,0,0,222,0,60,162,222,0,0,0,60,0,162,0,0,0,0,0,0,0,0,0,0,0,0,0,300000,0,666,0,43,4,SUMMIT,1,Snyderville Basin,1,Sum Jer Pine,79,Summit County,Balance of Summit County
+43298,298,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,378,147699,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43299,299,12,28,2.33,98,0,0,98,100,0,0,0,0,37,7,0,54,0,0,0,2,38,256,0,38,0,256,0,300000,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43300,300,67,148,2.21,16,0,3,13,27,0,0,0,3,13,0,0,0,0,0,0,11,21,34,0,21,0,34,0,107102,0,0,0,43,4,SUMMIT,1,Snyderville Basin,3,Kimball Snyder,79,Summit County,Balance of Summit County
+43301,301,37,96,2.59,44,10,0,34,59,0,10,0,0,3,2,0,29,0,0,9,6,15,0,0,15,0,0,0,232212,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City
+43302,302,132,338,2.56,86,0,1,85,108,0,0,1,0,45,0,0,40,0,0,0,22,55,0,0,55,0,0,0,232212,0,0,0,43,4,SUMMIT,1,Snyderville Basin,4,Park City,136,Park City,Park City

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><metadata>
+    <idinfo>
+        <descript>
+            <abstract>Boundaries.Municipalities is a multi-purpose statewide dataset of municipal boundaries for cartography and approximate boundary identification. Boundaries.Municipalities boundaries are maintained by AGRC with the help of many state, county, and local entities. Changes and updates are through certification by the Lt. Governor’s Office sent in by City and County Recorders offices. Boundary updates are occasionally accepted from local GIS departments when older (pre 2007) relevant boundary change information was not received through required channels. All features are adjusted to the current Geographic Coordinate Database (GCDB) points. Data developed with coordinate geometry (COGO) from legal descriptions were used. When necessary the data was adjusted to conform to known physical features. This dataset does not represent exact legal boundaries, but, rather a set of boundaries used for the administrative purposes that conforms to logical and administrative rules (e.g. no two cities or redevelopment areas may cover the same geographic extent). Data is current thru Dec. 31, 2020. Population Estimates are from July 1,2019.</abstract>
+            <purpose>These data were first created through a cooperative effort of the Governor's Office of Planning and Budget, the Utah Department of Transportation, the Utah State Tax Commission, and AGRC.  All incorporated municipalities in the state through dates varying from 1984 to 1992 were initially represented. Updates for further annexations and disconnections were completed with the cooperative efforts of the State Tax Commission, Property Tax Division, and AGRC, and currentness now ranges from 1993 through the revisions date shown in the metadata with updates from local government where needed to include new incorporations, corrections, and substantially changed boundaries due to annexation.  
+Data developed with coordinate geometry (COGO) from legal descriptions were used.  When necessary the data were adjusted to conform to known physical features. Due to adjustments to resolve conflicting or ambiguous data, the result was more a physical cadastre than a legal one. In other words, this dataset does not represent exact legal boundaries as per surveyed description, but, rather a set of boundaries used for the administrative purposes that conforms to logical and administrative rules (e.g. no two cities or redevelopment areas may cover the same geographic extent).</purpose>
+        </descript>
+        <keywords>
+            <theme>
+                <themekt>None</themekt>
+                <themekey>AGRC</themekey>
+                <themekey>Boundary</themekey>
+                <themekey>Municipalities</themekey>
+                <themekey>Cities</themekey>
+                <themekey>Towns</themekey>
+                <themekey>Boundaries</themekey>
+                <themekey>SGID</themekey>
+            </theme>
+        </keywords>
+        <accconst>None</accconst>
+        <useconst/>
+        <datacred>Cities, Towns and Counties of Utah, AGRC</datacred>
+    </idinfo>
+    <metainfo>
+        <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+        <metstdv>FGDC-STD-001-1998</metstdv>
+        <mettc>local time</mettc>
+    </metainfo>
+</metadata>
