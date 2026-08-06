@@ -52,15 +52,27 @@ INCOME_TIER_MODE <- "regional_tertiles"
 # polygon rather than the full county (Tooele alone would polyfill to ~168k
 # L9 hexes of empty desert). Morgan is excluded — its RPO boundary is ~the
 # whole county, so there's no useful trim. `taz_se_sources` are real USTM SE
-# 2025 files, area-interpolated onto these hexes below. Box Elder needs two:
-# its TAZ.shp mixes old-style CO_TAZIDs (USTM-only TAZs) with new-style ones
-# (WFRC-modeled TAZs), each matching exactly one source file.
+# 2025 files, area-interpolated onto these hexes below.
+#
+# All three Box Elder boundaries share the same two sources: its TAZ.shp
+# mixes old-style CO_TAZIDs (USTM-only TAZs, SE_BOXELDER_2025.csv) with
+# new-style ones (WFRC-modeled TAZs, the FiscallyConstrained extract), and
+# each boundary can touch either scheme — the interpolation only pulls in
+# whichever TAZs actually overlap a given area's hexes, so listing both
+# sources everywhere is safe. "WFRC MPO (Box Elder TAZ)" looks redundant by
+# name, but the original SE 2025 gdb only covers a small fraction of it
+# (5 of 1,144 cells) — an older/smaller TAZ vintage than USTM's current one.
+BOX_ELDER_TAZ_SOURCES <- list(
+  list(path = "_data/ustm_20260805/SE/03_BoxElder/SE_BOXELDER_2025.csv"),
+  list(path = "_data/ustm_20260805/SE/00_WF/2_WFRC/FiscallyConstrained/SE_2025.csv", county_filter = "BOX ELDER")
+)
 EXPANSION_AREAS <- list(
-  list(label = "WFRC MPO (Box Elder Non-TAZ)", plan_org = "WFRC MPO",   in_county = "Box Elder",
-       taz_se_sources = list(
-         list(path = "_data/ustm_20260805/SE/03_BoxElder/SE_BOXELDER_2025.csv"),
-         list(path = "_data/ustm_20260805/SE/00_WF/2_WFRC/FiscallyConstrained/SE_2025.csv", county_filter = "BOX ELDER")
-       )),
+  list(label = "WFRC MPO (Box Elder Non-TAZ)", plan_org = "WFRC MPO", in_county = "Box Elder",
+       taz_se_sources = BOX_ELDER_TAZ_SOURCES),
+  list(label = "WFRC MPO (Box Elder TAZ)",     plan_org = "WFRC MPO", in_county = "Box Elder",
+       taz_se_sources = BOX_ELDER_TAZ_SOURCES),
+  list(label = "Box Elder (Non-MPO TAZ)",      plan_org = "",         in_county = "Box Elder",
+       taz_se_sources = BOX_ELDER_TAZ_SOURCES),
   list(label = "Tooele RPO",                   plan_org = "Tooele RPO", in_county = "Tooele",
        taz_se_sources = list(
          list(path = "_data/ustm_20260805/SE/45_Tooele/SE_TOOELE_2025.csv")
