@@ -179,21 +179,22 @@ flag_presence <- function(hex_sf, features_sf) {
 
 # Reads one USTM SE csv, renames USTM_FIELD_MAP columns to our schema, and
 # derives residential_units. County-level extracts (e.g. SE_TOOELE_2025.csv)
-# are already single-county and carry USTM_SF/MF/RV (secondary/vacation
-# housing units, per UDOT: never included in TOTHH, safe to add directly).
-# The WFRC "FiscallyConstrained" extract covers multiple counties (needs
-# county_filter on its CO_NAME column) and lacks USTM_SF/MF/RV entirely, so
-# residential_units there is just TOTHH.
+# are already single-county and carry USTM_SF/MF (secondary/vacation housing
+# units, per UDOT: never included in TOTHH, safe to add directly). USTM_RV is
+# excluded from residential_units per WFRC guidance (RV spaces aren't housing
+# units). The WFRC "FiscallyConstrained" extract covers multiple counties
+# (needs county_filter on its CO_NAME column) and lacks USTM_SF/MF entirely,
+# so residential_units there is just TOTHH.
 load_ustm_se <- function(path, county_filter = NULL) {
   se <- read.csv(file.path(root, path))
   if (!"CO_TAZID" %in% names(se)) names(se)[1] <- "CO_TAZID"
   if (!is.null(county_filter)) se <- dplyr::filter(se, CO_NAME == county_filter)
-  has_secondary <- all(c("USTM_SF", "USTM_MF", "USTM_RV") %in% names(se))
+  has_secondary <- all(c("USTM_SF", "USTM_MF") %in% names(se))
 
   se |>
     dplyr::rename(!!!USTM_FIELD_MAP) |>
     dplyr::mutate(
-      residential_units = if (has_secondary) households + USTM_SF + USTM_MF + USTM_RV else households
+      residential_units = if (has_secondary) households + USTM_SF + USTM_MF else households
     ) |>
     dplyr::select(CO_TAZID, dplyr::all_of(names(USTM_FIELD_MAP)), residential_units)
 }
