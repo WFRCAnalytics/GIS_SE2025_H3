@@ -39,6 +39,18 @@ Weights are configurable at the top of `index.R` and must sum to 1. For edge cel
 
 The app's **Raw (Unsmoothed)** map panel shows each variable computed with no neighbor influence (center weight = 1.0), allowing direct comparison of the two representations.
 
+### Areas outside the original WFRC SE 2025 extract
+
+The WFRC SE 2025 gdb (the primary input) only covers the core MPO/TAZ footprint, which excludes Tooele County and part of Box Elder County. For these areas the H3 grid is expanded and populated from a second, independent source — real **USTM SE 2025 TAZ-level data** (`_data/ustm_20260805/`) — rather than being left blank:
+
+- New L9 hexes are created by polyfilling each area's `RegionalBoundaryComponents` *planning* boundary (Tooele RPO; Box Elder's Non-TAZ, TAZ, and Non-MPO TAZ areas) — not the full county, since e.g. Tooele alone would add ~168k hexes of empty desert.
+- Each new hex's raw SE columns (`households`, `hhpop`, `total_jobs`, the job-sector breakdown, `residential_units`) are filled by area-weighted apportionment: for every TAZ–hex overlap piece, `contribution = TAZ_value × (overlap_area / TAZ_area)`, summed per hex. This assumes SE is spread evenly within each TAZ.
+- `residential_units` for these hexes is `TOTHH` plus secondary/vacation housing units (`USTM_SF` + `USTM_MF`) where the source file provides them. `USTM_RV` is excluded — RV spaces aren't housing units.
+- Design, Destinations, and Demographics don't depend on the SE gdb, so they were already computed for these hexes; this expansion specifically unblocks **Density** and **Diversity**, which do.
+- A hex with zero TAZ overlap even after expansion (e.g. a sliver right at a boundary edge) falls back to 2020 Census block household counts as an income-interpolation weight, but its `households`/Density/Diversity values remain `NA`.
+
+Morgan, Summit, and Wasatch counties are **not** covered by this expansion and remain fully `NA`, pending further guidance on appropriate methodology for those areas.
+
 ### Level 8 aggregation
 
 Two different aggregation rules apply when moving from level 9 to the coarser level 8:
@@ -56,7 +68,7 @@ Two different aggregation rules apply when moving from level 9 to the coarser le
 density = (smoothed_residential_units + smoothed_total_jobs / J2H) / HEX_AREA_SQMI
 ```
 
-Hexes in Tooele, Morgan, Summit, and Wasatch counties are set to `NA` pending further guidance on appropriate methodology for those areas.
+Hexes in Morgan, Summit, and Wasatch counties are set to `NA` pending further guidance on appropriate methodology for those areas. Tooele and part of Box Elder County are covered via real USTM SE 2025 TAZ data — see [Areas outside the original WFRC SE 2025 extract](#areas-outside-the-original-wfrc-se-2025-extract).
 
 ---
 
@@ -232,6 +244,8 @@ WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
 | Source | ACS/API variable | Fetch method | Cache location |
 |--------|-----------------|-------------|----------------|
 | WFRC SE 2025 (input) | — | Local GDB zip | `_data/wfrc_se_2025_rtp23.gdb.zip` |
+| USTM SE 2025 TAZ data (Tooele/Box Elder expansion) | — | Local CSV + TAZ shapefile | `_data/ustm_20260805/` |
+| Regional planning boundaries (expansion area polygons) | — | ArcGIS REST | `_data/remote/boundaries/regional_boundary_components.gpkg` |
 | Street intersection density | — | ArcGIS REST | `_data/remote/design/` |
 | WC Centers & Land Uses | — | ArcGIS REST | `_data/remote/destinations/` |
 | Healthcare facilities | — | ArcGIS REST | `_data/remote/destinations/health_care.gpkg` |
@@ -253,6 +267,7 @@ Remote data is fetched once and cached locally as `.gpkg` files (full, unfiltere
 ```
 _data/
   wfrc_se_2025_rtp23.gdb.zip     # Input SE data (not tracked by git)
+  ustm_20260805/                  # USTM SE 2025 TAZ data + shapefile (Tooele/Box Elder expansion)
   remote/                         # Auto-created remote data cache
 _output/
   wfrc_se_2025_rtp23.gdb.zip     # Output with D variable columns appended
