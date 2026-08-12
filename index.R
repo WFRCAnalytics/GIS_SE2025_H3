@@ -3,8 +3,9 @@
 # at H3 levels 9 and 8. Full methodology: D_VARIABLE_CALCULATIONS.md.
 #
 # Flow: fetch/cache remote data -> import SE 2025 -> expand the hex grid
-# into Tooele/Box Elder areas with real USTM TAZ data -> compute L9 D
-# variables -> aggregate to L8 and recompute there -> export gdb/pmtiles.
+# into Tooele/Box Elder/Morgan/Cache Census Places with real USTM TAZ data ->
+# compute L9 D variables -> aggregate to L8 and recompute there -> export
+# gdb/pmtiles.
 
 # ── Parameters ────────────────────────────────────────────────────────────────
 
@@ -48,34 +49,38 @@ INCOME_TIER_MODE <- "regional_tertiles"
 # Example: Low = bins 1–4 (<$25k), Mid = bins 5–8 ($25k–$50k), High = bins 9–11 ($50k–$75k)
 # INCOME_TIER_BREAKS <- c(low_max = 4L, mid_max = 8L)
 
-# Areas to add to the hex grid, each scoped to a RegionalBoundaryComponents
-# polygon rather than the full county (Tooele alone would polyfill to ~168k
-# L9 hexes of empty desert). Morgan is excluded — its RPO boundary is ~the
-# whole county, so there's no useful trim. `taz_se_sources` are real USTM SE
-# 2025 files, area-interpolated onto these hexes below.
+# Counties to add to the hex grid, each scoped to that county's Census Places
+# (cities, towns, and CDPs from CensusPlaces2020) rather than the full county
+# (Tooele alone would polyfill to ~168k L9 hexes of empty desert). `fips` is
+# the county FIPS code (COUNTYFP in tigris::counties), used to select the
+# county polygon that Census Places are spatially matched against.
+# `taz_se_sources` are real USTM SE 2025 files, area-interpolated onto these
+# hexes below.
 #
-# All three Box Elder boundaries share the same two sources: its TAZ.shp
-# mixes old-style CO_TAZIDs (USTM-only TAZs, SE_BOXELDER_2025.csv) with
-# new-style ones (WFRC-modeled TAZs, the FiscallyConstrained extract), and
-# each boundary can touch either scheme — the interpolation only pulls in
-# whichever TAZs actually overlap a given area's hexes, so listing both
-# sources everywhere is safe. "WFRC MPO (Box Elder TAZ)" looks redundant by
-# name, but the original SE 2025 gdb only covers a small fraction of it
-# (5 of 1,144 cells) — an older/smaller TAZ vintage than USTM's current one.
+# Box Elder's two sources: its TAZ.shp mixes old-style CO_TAZIDs (USTM-only
+# TAZs, SE_BOXELDER_2025.csv) with new-style ones (WFRC-modeled TAZs, the
+# FiscallyConstrained extract) — the interpolation only pulls in whichever
+# TAZs actually overlap Box Elder's hexes, so listing both sources is safe.
 BOX_ELDER_TAZ_SOURCES <- list(
   list(path = "_data/ustm_20260805/SE/03_BoxElder/SE_BOXELDER_2025.csv"),
   list(path = "_data/ustm_20260805/SE/00_WF/2_WFRC/FiscallyConstrained/SE_2025.csv", county_filter = "BOX ELDER")
 )
-EXPANSION_AREAS <- list(
-  list(label = "WFRC MPO (Box Elder Non-TAZ)", plan_org = "WFRC MPO", in_county = "Box Elder",
-       taz_se_sources = BOX_ELDER_TAZ_SOURCES),
-  list(label = "WFRC MPO (Box Elder TAZ)",     plan_org = "WFRC MPO", in_county = "Box Elder",
-       taz_se_sources = BOX_ELDER_TAZ_SOURCES),
-  list(label = "Box Elder (Non-MPO TAZ)",      plan_org = "",         in_county = "Box Elder",
-       taz_se_sources = BOX_ELDER_TAZ_SOURCES),
-  list(label = "Tooele RPO",                   plan_org = "Tooele RPO", in_county = "Tooele",
-       taz_se_sources = list(
+EXPANSION_COUNTIES <- list(
+  list(county = "Box Elder", fips = "003", taz_se_sources = BOX_ELDER_TAZ_SOURCES),
+  list(county = "Tooele",    fips = "045", taz_se_sources = list(
          list(path = "_data/ustm_20260805/SE/45_Tooele/SE_TOOELE_2025.csv")
+       )),
+  list(county = "Morgan",    fips = "029", taz_se_sources = list(
+         list(path = "_data/ustm_20260805/SE/29_Morgan/SE_MORGAN_2025.csv")
+       )),
+  list(county = "Cache",     fips = "005", taz_se_sources = list(
+         list(path = "_data/ustm_20260805/SE/05_Cache/SE_CACHE_2025.csv")
+       )),
+  list(county = "Summit",    fips = "043", taz_se_sources = list(
+         list(path = "_data/ustm_20260805/SE/43_Summit/SE_SUMMIT_2025.csv")
+       )),
+  list(county = "Wasatch",   fips = "051", taz_se_sources = list(
+         list(path = "_data/ustm_20260805/SE/51_Wasatch/SE_WASATCH_2025.csv")
        ))
 )
 
@@ -298,7 +303,7 @@ if (!file.exists(bg_income_path)) {
     variables = "B19013_001",
     state     = "UT",
     county    = c("Box Elder", "Davis", "Weber", "Salt Lake", "Utah",
-                  "Tooele", "Morgan", "Summit", "Wasatch"),
+                  "Tooele", "Morgan", "Summit", "Wasatch", "Cache"),
     year      = 2023,
     geometry  = TRUE
   )
@@ -316,7 +321,7 @@ if (!file.exists(bg_income_dist_path)) {
     variables = c("B19001_001", INCOME_BINS),
     state     = "UT",
     county    = c("Box Elder", "Davis", "Weber", "Salt Lake", "Utah",
-                  "Tooele", "Morgan", "Summit", "Wasatch"),
+                  "Tooele", "Morgan", "Summit", "Wasatch", "Cache"),
     year      = 2023,
     output    = "wide",
     geometry  = TRUE
@@ -366,11 +371,11 @@ if (!file.exists(utah_counties_path)) {
   utah_counties <- sf::read_sf(utah_counties_path)
 }
 
-# WFRC regional planning boundary components — used to scope hex grid
-# expansion into areas with no SE 2025 TAZ data (see EXPANSION_AREAS above)
-regional_boundary_components <- fetch_or_cache(
-  url        = "https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/RegionalBoundaryComponents/FeatureServer/0",
-  cache_path = "_data/remote/boundaries/regional_boundary_components.gpkg"
+# Census Places (cities, towns, and CDPs) — used to scope hex grid expansion
+# into areas with no SE 2025 TAZ data (see EXPANSION_COUNTIES above)
+census_places <- fetch_or_cache(
+  url        = "https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/CensusPlaces2020/FeatureServer/0",
+  cache_path = "_data/remote/boundaries/census_places.gpkg"
 )
 
 # ── SE Data Import ─────────────────────────────────────────────────────────────
@@ -381,11 +386,6 @@ se_hex <- sf::read_sf(
 )
 hex_ids <- se_hex$hex_id
 hex_crs <- sf::st_crs(se_hex)
-
-# Tooele intentionally NOT listed here — it now has real TAZ SE data (see
-# "TAZ SE Data Import" below), so masking is precise per-hex via
-# no_se_data_hex_ids instead of blanket-excluding the whole county.
-na_county_names <- c("Morgan", "Summit", "Wasatch")
 
 # Raw SE input columns — defined here (not just at L8, where they're also used
 # for aggregation) so the hex-grid-expansion section below can NA them out for
@@ -398,21 +398,42 @@ se_count_cols <- c(
 )
 
 # ── Hex Grid Expansion: SE-data-pending areas ──────────────────────────────────
-# Add H3 L9 hexes for EXPANSION_AREAS (see Parameters). These get real
+# Add H3 L9 hexes for EXPANSION_COUNTIES (see Parameters). These get real
 # Design/Destinations/Demographics; SE columns are left NA (not 0) so the
 # rest of the pipeline can tell "no TAZ data yet" apart from "confirmed zero".
 
-expansion_boundary <- purrr::map(EXPANSION_AREAS, \(a) {
-    dplyr::filter(regional_boundary_components,
-      PlanOrg == a$plan_org, InCounty == a$in_county, Label == a$label)
-  }) |>
-  dplyr::bind_rows() |>
+expansion_target_counties <- utah_counties |>
+  dplyr::filter(COUNTYFP %in% purrr::map_chr(EXPANSION_COUNTIES, "fips")) |>
+  sf::st_transform(4326L) |>
+  dplyr::select(county = NAME, COUNTYFP)
+
+stopifnot(
+  "One or more EXPANSION_COUNTIES fips codes matched zero utah_counties features" =
+    nrow(expansion_target_counties) == length(EXPANSION_COUNTIES)
+)
+
+# One spatial intersection: each Census Place (city, town, or CDP) is assigned
+# to whichever target county its centroid falls within (its whole polygon is
+# kept — not clipped). Centroid containment gives each place exactly one
+# county, so a place straddling two target counties can't double-count a hex
+# toward both (the duplicate hex_id bug an st_intersection/st_join-based
+# tag-the-whole-place approach would hit at a shared county line).
+census_places_ll <- census_places |>
   sf::st_transform(4326L) |>
   sf::st_make_valid()
 
+place_county <- sf::st_join(
+    sf::st_centroid(census_places_ll["OBJECTID"]), expansion_target_counties,
+    join = sf::st_within, left = FALSE
+  ) |>
+  sf::st_drop_geometry()
+
+expansion_boundary <- census_places_ll |>
+  dplyr::inner_join(place_county, by = "OBJECTID")
+
 stopifnot(
-  "One or more EXPANSION_AREAS filters matched zero features — check field values against RegionalBoundaryComponents" =
-    nrow(expansion_boundary) == length(EXPANSION_AREAS)
+  "One or more EXPANSION_COUNTIES fips codes matched zero Census Places — check fips codes against CensusPlaces2020" =
+    all(purrr::map_chr(EXPANSION_COUNTIES, "fips") %in% expansion_boundary$COUNTYFP)
 )
 
 expansion_cell_ids <- h3o::sfc_to_cells(
@@ -430,7 +451,7 @@ overlap_hex_ids <- intersect(expansion_cell_ids, hex_ids)
 message(length(overlap_hex_ids), " pre-existing hex(es) overlap an expansion boundary and keep their original se_hex values: ",
         paste(overlap_hex_ids, collapse = ", "))
 
-stopifnot("No new H3 cells generated for EXPANSION_AREAS" = length(new_hex_ids) > 0L)
+stopifnot("No new H3 cells generated for EXPANSION_COUNTIES" = length(new_hex_ids) > 0L)
 
 # Build true H3 L9 hex boundaries the same way the L8 grid is built further
 # down (vertex convex hull of each cell's 6/5 vertices).
@@ -465,7 +486,7 @@ ustm_taz_shp <- sf::read_sf(file.path(root, "_data/ustm_20260805/TAZ/TAZ.shp")) 
 
 taz_value_cols <- c(names(USTM_FIELD_MAP), "residential_units")
 
-taz_results <- purrr::map(EXPANSION_AREAS, \(area) {
+taz_results <- purrr::map(EXPANSION_COUNTIES, \(area) {
   se_combined <- purrr::map(area$taz_se_sources, \(s) load_ustm_se(s$path, s$county_filter)) |>
     dplyr::bind_rows()
 
@@ -473,11 +494,11 @@ taz_results <- purrr::map(EXPANSION_AREAS, \(area) {
   # boundary-edge TAZ can have its own centroid just outside while still
   # covering a target hex just inside. Only the target hexes are boundary-scoped.
   taz_joined <- ustm_taz_shp |>
-    dplyr::filter(toupper(CO_NAME) == toupper(area$in_county)) |>
+    dplyr::filter(toupper(CO_NAME) == toupper(area$county)) |>
     dplyr::inner_join(se_combined, by = "CO_TAZID")
 
-  boundary <- regional_boundary_components |>
-    dplyr::filter(PlanOrg == area$plan_org, InCounty == area$in_county, Label == area$label) |>
+  boundary <- expansion_boundary |>
+    dplyr::filter(COUNTYFP == area$fips) |>
     sf::st_transform(hex_crs) |>
     sf::st_make_valid()
 
@@ -597,19 +618,7 @@ res_s   <- smooth_by_neighbors(hex_ids, se_hex$residential_units, neighbor_index
 jobs_s  <- smooth_by_neighbors(hex_ids, se_hex$total_jobs,        neighbor_index)
 density <- (res_s + jobs_s / J2H) / L9_HEX_AREA_SQMI
 
-# Flag hexes in na_county_names (no SE data, pending methodology) as NA
-na_hex_ids <- sf::st_join(
-  sf::st_centroid(se_hex["hex_id"]),
-  sf::st_transform(utah_counties["NAME"], hex_crs),
-  join = sf::st_within
-) |>
-  sf::st_drop_geometry() |>
-  dplyr::filter(NAME %in% na_county_names) |>
-  dplyr::pull(hex_id)
-# Union in expansion/stray hexes explicitly — they may fall in a county (e.g.
-# Box Elder) not otherwise in na_county_names, since only part of it lacks SE data.
-na_hex_ids <- union(na_hex_ids, no_se_data_hex_ids)
-density <- dplyr::if_else(hex_ids %in% na_hex_ids, NA_real_, density)
+density <- dplyr::if_else(hex_ids %in% no_se_data_hex_ids, NA_real_, density)
 
 ## Diversity
 hh_s  <- smooth_by_neighbors(hex_ids, se_hex$households, neighbor_index)
@@ -734,7 +743,7 @@ transit_dist     <- smooth_by_neighbors(hex_ids, transit_dist_raw, neighbor_inde
 
 ## Raw (unsmoothed) L9 values
 density_raw   <- (se_hex$residential_units + se_hex$total_jobs / J2H) / L9_HEX_AREA_SQMI
-density_raw   <- dplyr::if_else(hex_ids %in% na_hex_ids, NA_real_, density_raw)
+density_raw   <- dplyr::if_else(hex_ids %in% no_se_data_hex_ids, NA_real_, density_raw)
 
 hw_raw        <- se_hex$households * J2H
 diversity_raw <- dplyr::if_else(hw_raw == 0 & se_hex$total_jobs == 0, NA_real_,
@@ -812,19 +821,10 @@ res_s_l8   <- smooth_by_neighbors(h8_ids, se_l8$residential_units, neighbor_inde
 jobs_s_l8  <- smooth_by_neighbors(h8_ids, se_l8$total_jobs,        neighbor_index_l8)
 density_l8 <- (res_s_l8 + jobs_s_l8 / J2H) / L8_HEX_AREA_SQMI
 
-na_hex_ids <- sf::st_join(
-  sf::st_centroid(se_l8["hex_id"]),
-  sf::st_transform(utah_counties["NAME"], hex_crs),
-  join = sf::st_within
-) |>
-  sf::st_drop_geometry() |>
-  dplyr::filter(NAME %in% na_county_names) |>
-  dplyr::pull(hex_id)
 # An L8 hex is NA if ANY of its L9 children lack real SE data — otherwise its
 # summed counts would silently undercount rather than honestly read NA.
 no_se_data_hex_ids_l8 <- unique(h8_ids_vec[hex_ids %in% no_se_data_hex_ids])
-na_hex_ids <- union(na_hex_ids, no_se_data_hex_ids_l8)
-density_l8 <- dplyr::if_else(h8_ids %in% na_hex_ids, NA_real_, density_l8)
+density_l8 <- dplyr::if_else(h8_ids %in% no_se_data_hex_ids_l8, NA_real_, density_l8)
 
 ## Diversity (L8)
 hh_s_l8  <- smooth_by_neighbors(h8_ids, se_l8$households, neighbor_index_l8)
@@ -927,7 +927,7 @@ transit_dist_l8     <- smooth_by_neighbors(h8_ids, transit_dist_raw_l8, neighbor
 
 ## Raw (unsmoothed) L8 values
 density_raw_l8   <- (se_l8$residential_units + se_l8$total_jobs / J2H) / L8_HEX_AREA_SQMI
-density_raw_l8   <- dplyr::if_else(h8_ids %in% na_hex_ids, NA_real_, density_raw_l8)
+density_raw_l8   <- dplyr::if_else(h8_ids %in% no_se_data_hex_ids_l8, NA_real_, density_raw_l8)
 
 hw_raw_l8        <- se_l8$households * J2H
 diversity_raw_l8 <- dplyr::if_else(hw_raw_l8 == 0 & se_l8$total_jobs == 0, NA_real_,
@@ -1122,14 +1122,46 @@ app_cols <- c(
 # alongside the D variables. se_count_cols is defined in the L8 pipeline above.
 app_cols <- c(app_cols, se_count_cols)
 
+# Decimal precision per property group, applied before tiling — trims
+# property payload size with no visible effect (well beyond map color-scale
+# resolution). 0-1 ratio scores keep more digits than raw counts/dollars.
+round_cols_4 <- c("diversity", "diversity_raw",
+                   "destinations", "destinations_raw",
+                   "destinations_center",  "destinations_center_raw",
+                   "destinations_health",  "destinations_health_raw",
+                   "destinations_school",  "destinations_school_raw",
+                   "destinations_grocery", "destinations_grocery_raw",
+                   "destinations_cityhall", "destinations_cityhall_raw",
+                   "destinations_park",    "destinations_park_raw",
+                   "destinations_ems",     "destinations_ems_raw",
+                   "income_diversity", "income_diversity_raw")
+round_cols_2 <- c("density", "density_raw", "design", "design_raw",
+                   "transit_dist", "transit_dist_raw")
+round_cols_0 <- c("demographics", "demographics_raw")
+round_cols_1 <- se_count_cols
+
 # Export PMTiles — viewport-aware tiles for faster web app loading.
 # freestiler uses a Rust backend; no external CLI needed on any OS.
+#
+# drop_rate/base_zoom thin the feature set at low zooms instead of tiling
+# every hex at full density from min_zoom up — L9/L8 are viewable standalone
+# (not just via the auto zoom-based crossfade) at any zoom via the level
+# toggle, so tiles still need *something* below their normal display range,
+# just not the full, individually-illegible hex set. base_zoom = max_zoom - 2
+# keeps full detail from roughly the zoom each level is actually legible at.
 export_pmtiles <- function(sf_obj, dest_path, min_zoom, max_zoom) {
   sf_obj |>
     sf::st_transform(4326L) |>
     dplyr::select(dplyr::all_of(app_cols)) |>
+    dplyr::mutate(
+      dplyr::across(dplyr::any_of(round_cols_4), \(x) round(x, 4)),
+      dplyr::across(dplyr::any_of(round_cols_2), \(x) round(x, 2)),
+      dplyr::across(dplyr::any_of(round_cols_0), \(x) round(x, 0)),
+      dplyr::across(dplyr::any_of(round_cols_1), \(x) round(x, 1))
+    ) |>
     freestiler::freestile(output = dest_path, layer_name = "hexes",
-                          min_zoom = min_zoom, max_zoom = max_zoom)
+                          min_zoom = min_zoom, max_zoom = max_zoom,
+                          drop_rate = 2.5, base_zoom = max_zoom - 2L)
 }
 
 export_pmtiles(se_hex, file.path(app_data_dir, "l9.pmtiles"), min_zoom = 6L,  max_zoom = 14L)

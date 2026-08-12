@@ -39,17 +39,15 @@ Weights are configurable at the top of `index.R` and must sum to 1. For edge cel
 
 The app's **Raw (Unsmoothed)** map panel shows each variable computed with no neighbor influence (center weight = 1.0), allowing direct comparison of the two representations.
 
-### Areas outside the original WFRC SE 2025 extract
+### Areas outside the WF Model region
 
-The WFRC SE 2025 gdb (the primary input) only covers the core MPO/TAZ footprint, which excludes Tooele County and part of Box Elder County. For these areas the H3 grid is expanded and populated from a second, independent source — real **USTM SE 2025 TAZ-level data** (`_data/ustm_20260805/`) — rather than being left blank:
+The WFRC SE 2025 gdb (the primary input, referred to here as the WF Model region) only covers the core MPO/TAZ footprint. Its SE values come from WFRC's **Real Estate Market Model (REMM)**, a parcel-level land-use model. Box Elder, Tooele, Morgan, Cache, Summit, and Wasatch counties fall outside that footprint, so for these areas the H3 grid is expanded and populated from a second, independent source — real **USTM SE 2025 TAZ-level data** (`_data/ustm_20260805/`), the Utah Statewide Travel Demand Model's own socioeconomic forecast — rather than being left blank. Because USTM is TAZ-level, not parcel-level, its SE values are spatially interpolated onto hexes rather than read directly the way REMM values are for the WF Model region; everything downstream (D variable formulas, smoothing, L8 aggregation) is otherwise identical between the two sources.
 
-- New L9 hexes are created by polyfilling each area's `RegionalBoundaryComponents` *planning* boundary (Tooele RPO; Box Elder's Non-TAZ, TAZ, and Non-MPO TAZ areas) — not the full county, since e.g. Tooele alone would add ~168k hexes of empty desert.
+- New L9 hexes are created only within each county's **Census Designated Places** (cities, towns, and CDPs from the [CensusPlaces2020](https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/CensusPlaces2020/FeatureServer/0) layer) — not the full county, since e.g. Tooele alone would add ~168k hexes of empty desert. Each place is assigned to whichever of the six counties its centroid falls within (matched by county FIPS), and only hexes inside that county's places are added.
 - Each new hex's raw SE columns (`households`, `hhpop`, `total_jobs`, the job-sector breakdown, `residential_units`) are filled by area-weighted apportionment: for every TAZ–hex overlap piece, `contribution = TAZ_value × (overlap_area / TAZ_area)`, summed per hex. This assumes SE is spread evenly within each TAZ.
 - `residential_units` for these hexes is `TOTHH` plus secondary/vacation housing units (`USTM_SF` + `USTM_MF`) where the source file provides them. `USTM_RV` is excluded — RV spaces aren't housing units.
 - Design, Destinations, and Demographics don't depend on the SE gdb, so they were already computed for these hexes; this expansion specifically unblocks **Density** and **Diversity**, which do.
 - A hex with zero TAZ overlap even after expansion (e.g. a sliver right at a boundary edge) falls back to 2020 Census block household counts as an income-interpolation weight, but its `households`/Density/Diversity values remain `NA`.
-
-Morgan, Summit, and Wasatch counties are **not** covered by this expansion and remain fully `NA`, pending further guidance on appropriate methodology for those areas.
 
 ### Level 8 aggregation
 
@@ -68,7 +66,7 @@ Two different aggregation rules apply when moving from level 9 to the coarser le
 density = (smoothed_residential_units + smoothed_total_jobs / J2H) / HEX_AREA_SQMI
 ```
 
-Hexes in Morgan, Summit, and Wasatch counties are set to `NA` pending further guidance on appropriate methodology for those areas. Tooele and part of Box Elder County are covered via real USTM SE 2025 TAZ data — see [Areas outside the original WFRC SE 2025 extract](#areas-outside-the-original-wfrc-se-2025-extract).
+Box Elder, Tooele, Morgan, Cache, Summit, and Wasatch counties are covered via real USTM SE 2025 TAZ data, restricted to Census Designated Places — see [Areas outside the WF Model region](#areas-outside-the-wf-model-region).
 
 ---
 
@@ -243,9 +241,9 @@ WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
 
 | Source | ACS/API variable | Fetch method | Cache location |
 |--------|-----------------|-------------|----------------|
-| WFRC SE 2025 (input) | — | Local GDB zip | `_data/wfrc_se_2025_rtp23.gdb.zip` |
-| USTM SE 2025 TAZ data (Tooele/Box Elder expansion) | — | Local CSV + TAZ shapefile | `_data/ustm_20260805/` |
-| Regional planning boundaries (expansion area polygons) | — | ArcGIS REST | `_data/remote/boundaries/regional_boundary_components.gpkg` |
+| WFRC SE 2025 (input, REMM parcel-level) | — | Local GDB zip | `_data/wfrc_se_2025_rtp23.gdb.zip` |
+| USTM SE 2025 TAZ data (WF Model region expansion) | — | Local CSV + TAZ shapefile | `_data/ustm_20260805/` |
+| Census Designated Places (expansion area boundaries) | — | ArcGIS REST | `_data/remote/boundaries/census_places.gpkg` |
 | Street intersection density | — | ArcGIS REST | `_data/remote/design/` |
 | WC Centers & Land Uses | — | ArcGIS REST | `_data/remote/destinations/` |
 | Healthcare facilities | — | ArcGIS REST | `_data/remote/destinations/health_care.gpkg` |
@@ -267,7 +265,7 @@ Remote data is fetched once and cached locally as `.gpkg` files (full, unfiltere
 ```
 _data/
   wfrc_se_2025_rtp23.gdb.zip     # Input SE data (not tracked by git)
-  ustm_20260805/                  # USTM SE 2025 TAZ data + shapefile (Tooele/Box Elder expansion)
+  ustm_20260805/                  # USTM SE 2025 TAZ data + shapefile (WF Model region expansion)
   remote/                         # Auto-created remote data cache
 _output/
   wfrc_se_2025_rtp23.gdb.zip     # Output with D variable columns appended
