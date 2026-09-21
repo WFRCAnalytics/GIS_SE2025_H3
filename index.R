@@ -49,6 +49,15 @@ INCOME_TIER_MODE <- "regional_tertiles"
 # Example: Low = bins 1–4 (<$25k), Mid = bins 5–8 ($25k–$50k), High = bins 9–11 ($50k–$75k)
 # INCOME_TIER_BREAKS <- c(low_max = 4L, mid_max = 8L)
 
+# Rental Housing Attainability Index (Cascadia Partners / UTA methodology,
+# Sep 2026 — see email thread): equal-weight blend of MF housing supply
+# (WFRC Housing Unit Inventory) and renter cost-burden relief (ACS B25070).
+ATTAIN_MF_RADIUS_MI <- 0.25  # buffer radius around each hex centroid for HUI unit sum
+
+# B25070 categories "Less than 10.0 percent" through "25.0 to 29.9 percent" —
+# the numerator for renter share paying under 30% of income on gross rent.
+RENT_BURDEN_UNDER30_VARS <- sprintf("B25070_%03d", 2:6)
+
 # Counties to add to the hex grid, each scoped to that county's Census Places
 # (cities, towns, and CDPs from CensusPlaces2020) rather than the full county
 # (Tooele alone would polyfill to ~168k L9 hexes of empty desert). `fips` is
@@ -180,6 +189,35 @@ income_diversity_from_tiers <- function(counts, tier_breaks) {
 flag_presence <- function(hex_sf, features_sf) {
   ft <- sf::st_transform(features_sf, sf::st_crs(hex_sf))
   as.integer(lengths(sf::st_intersects(hex_sf, ft)) > 0L)
+}
+
+# Buffers each hex centroid by radius_mi and sums HUI UNIT_COUNT within it;
+# mf_share = multifamily units / all units in that buffer. NA (not 0) when
+# the buffer contains zero HUI units — no data, not a confirmed zero share.
+mf_share_within_radius <- function(hex_sf, hui_sf, radius_mi = ATTAIN_MF_RADIUS_MI) {
+  buf <- sf::st_sf(
+    hex_id   = hex_sf$hex_id,
+    geometry = sf::st_buffer(sf::st_centroid(sf::st_geometry(hex_sf)), radius_mi * 1609.34)
+  )
+  sf::st_join(buf, sf::st_transform(hui_sf, sf::st_crs(hex_sf))) |>
+    sf::st_drop_geometry() |>
+    dplyr::group_by(hex_id) |>
+    dplyr::summarise(
+      mf_units    = sum(UNIT_COUNT[is_mf], na.rm = TRUE),
+      total_units = sum(UNIT_COUNT, na.rm = TRUE),
+      .groups     = "drop"
+    ) |>
+    dplyr::transmute(hex_id, mf_share = dplyr::if_else(total_units > 0, mf_units / total_units, NA_real_))
+}
+
+# Each hex is assigned the value of the tract its centroid falls in (point-in-
+# polygon, not interpolated). A centroid landing exactly on a shared tract
+# boundary can join to more than one tract; distinct() keeps the first match.
+renter_afford_by_tract <- function(hex_sf, tract_sf) {
+  centroids <- sf::st_sf(hex_id = hex_sf$hex_id, geometry = sf::st_centroid(sf::st_geometry(hex_sf)))
+  sf::st_join(centroids, sf::st_transform(tract_sf["renter_under_30_share"], sf::st_crs(hex_sf))) |>
+    sf::st_drop_geometry() |>
+    dplyr::distinct(hex_id, .keep_all = TRUE)
 }
 
 # Reads one USTM SE csv, renames USTM_FIELD_MAP columns to our schema, and
@@ -350,6 +388,51 @@ income_tier_breaks <- if (INCOME_TIER_MODE == "regional_tertiles") {
 } else {
   INCOME_TIER_BREAKS
 }
+
+# Attainability Index: WFRC Housing Unit Inventory (HUI), for multifamily
+# share. Point dataset, ~645k records across the region — only TYPE +
+# UNIT_COUNT are needed, fetched explicitly (not via fetch_or_cache(), which
+# pulls every field) and pre-filtered to our counties to keep the cache lean.
+hui_path <- file.path(root, "_data/remote/demographics/hui.gpkg")
+if (!file.exists(hui_path)) {
+  dir.create(dirname(hui_path), recursive = TRUE, showWarnings = FALSE)
+  hui <- arcgislayers::arc_select(
+    arcgislayers::arc_open("https://services1.arcgis.com/taguadKoI1XFwivx/ArcGIS/rest/services/hui_for_web2_gdb/FeatureServer/1"),
+    fields = c("TYPE", "UNIT_COUNT"),
+    where  = "COUNTY IN ('Box Elder (MPO Area)', 'Davis', 'Morgan', 'Salt Lake', 'Summit', 'Tooele', 'Utah', 'Wasatch', 'Weber')",
+    crs    = sf::st_crs(4326L)
+  )
+  sf::write_sf(hui, hui_path, driver = "GPKG")
+} else {
+  hui <- sf::read_sf(hui_path)
+}
+hui <- dplyr::mutate(hui, is_mf = TYPE == "multi_family")
+
+# Attainability Index: ACS B25070 (gross rent as % of household income),
+# tract level, for renter cost-burden relief. renter_denom excludes B25070_011
+# ("Not computed") from the base, per Census Bureau table definition.
+tract_renter_burden_path <- file.path(root, "_data/remote/demographics/tract_renter_burden.gpkg")
+if (!file.exists(tract_renter_burden_path)) {
+  dir.create(dirname(tract_renter_burden_path), recursive = TRUE, showWarnings = FALSE)
+  tract_renter_burden <- tidycensus::get_acs(
+    geography = "tract",
+    variables = c("B25070_001", "B25070_011", RENT_BURDEN_UNDER30_VARS),
+    state     = "UT",
+    county    = c("Box Elder", "Davis", "Weber", "Salt Lake", "Utah",
+                  "Tooele", "Morgan", "Summit", "Wasatch", "Cache"),
+    year      = 2023,
+    output    = "wide",
+    geometry  = TRUE
+  ) |>
+    dplyr::select(GEOID, dplyr::ends_with("E"), geometry) |>
+    dplyr::rename_with(~ sub("E$", "", .x), dplyr::ends_with("E"))
+  sf::write_sf(tract_renter_burden, tract_renter_burden_path)
+} else {
+  tract_renter_burden <- sf::read_sf(tract_renter_burden_path)
+}
+under30_sum <- rowSums(sf::st_drop_geometry(tract_renter_burden)[RENT_BURDEN_UNDER30_VARS], na.rm = TRUE)
+renter_denom <- tract_renter_burden$B25070_001 - tract_renter_burden$B25070_011
+tract_renter_burden$renter_under_30_share <- dplyr::if_else(renter_denom > 0, under30_sum / renter_denom, NA_real_)
 
 # Transit: UTA GTFS
 gtfs_zip <- file.path(root, "_data/remote/transit/GTFS.zip")
@@ -734,6 +817,17 @@ bin_smoothed <- vapply(
 )
 income_diversity <- apply(bin_smoothed, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
+## Attainability Index — MF housing share (HUI) + renter affordability (B25070)
+attain_mf_share <- tibble::tibble(hex_id = hex_ids) |>
+  dplyr::left_join(mf_share_within_radius(se_hex, hui), by = "hex_id") |>
+  dplyr::pull(mf_share)
+
+attain_renter_afford <- tibble::tibble(hex_id = hex_ids) |>
+  dplyr::left_join(renter_afford_by_tract(se_hex, tract_renter_burden), by = "hex_id") |>
+  dplyr::pull(renter_under_30_share)
+
+attainability_index <- (attain_mf_share + attain_renter_afford) / 2 * 100
+
 ## Distance to Transit
 centroids        <- sf::st_centroid(sf::st_geometry(se_hex))
 dist_mat         <- sf::st_distance(centroids, frequent_stops)
@@ -781,7 +875,10 @@ se_hex <- dplyr::mutate(
   transit_dist              = transit_dist,
   transit_dist_raw          = transit_dist_raw,
   income_diversity          = income_diversity,
-  income_diversity_raw      = income_diversity_raw
+  income_diversity_raw      = income_diversity_raw,
+  attain_mf_share           = attain_mf_share,
+  attain_renter_afford      = attain_renter_afford,
+  attainability_index       = attainability_index
 )
 
 # ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
@@ -918,6 +1015,18 @@ bin_smoothed_l8 <- vapply(
 )
 income_diversity_l8 <- apply(bin_smoothed_l8, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
+## Attainability Index (L8) — recomputed directly against L8 hex geometry,
+## same as Design/Destinations above, not aggregated from L9 children.
+attain_mf_share_l8 <- tibble::tibble(hex_id = h8_ids) |>
+  dplyr::left_join(mf_share_within_radius(se_l8, hui), by = "hex_id") |>
+  dplyr::pull(mf_share)
+
+attain_renter_afford_l8 <- tibble::tibble(hex_id = h8_ids) |>
+  dplyr::left_join(renter_afford_by_tract(se_l8, tract_renter_burden), by = "hex_id") |>
+  dplyr::pull(renter_under_30_share)
+
+attainability_index_l8 <- (attain_mf_share_l8 + attain_renter_afford_l8) / 2 * 100
+
 ## Distance to Transit (L8)
 centroids_l8        <- sf::st_centroid(sf::st_geometry(se_l8))
 dist_mat_l8         <- sf::st_distance(centroids_l8, frequent_stops)
@@ -963,7 +1072,10 @@ se_l8 <- dplyr::mutate(
   transit_dist                = transit_dist_l8,
   transit_dist_raw            = transit_dist_raw_l8,
   income_diversity            = income_diversity_l8,
-  income_diversity_raw        = income_diversity_raw_l8
+  income_diversity_raw        = income_diversity_raw_l8,
+  attain_mf_share              = attain_mf_share_l8,
+  attain_renter_afford          = attain_renter_afford_l8,
+  attainability_index           = attainability_index_l8
 )
 
 # Destination scores are logically bounded [0, 1]; clamp any floating-point
@@ -1115,7 +1227,8 @@ app_cols <- c(
   "destinations_ems",      "destinations_ems_raw",
   "demographics",     "demographics_raw",
   "transit_dist",     "transit_dist_raw",
-  "income_diversity", "income_diversity_raw"
+  "income_diversity", "income_diversity_raw",
+  "attain_mf_share", "attain_renter_afford", "attainability_index"
 )
 
 # Raw SE counts (single value, no smoothed/raw pair) are explorable in the app
@@ -1134,9 +1247,10 @@ round_cols_4 <- c("diversity", "diversity_raw",
                    "destinations_cityhall", "destinations_cityhall_raw",
                    "destinations_park",    "destinations_park_raw",
                    "destinations_ems",     "destinations_ems_raw",
-                   "income_diversity", "income_diversity_raw")
+                   "income_diversity", "income_diversity_raw",
+                   "attain_mf_share", "attain_renter_afford")
 round_cols_2 <- c("density", "density_raw", "design", "design_raw",
-                   "transit_dist", "transit_dist_raw")
+                   "transit_dist", "transit_dist_raw", "attainability_index")
 round_cols_0 <- c("demographics", "demographics_raw")
 round_cols_1 <- se_count_cols
 
@@ -1214,8 +1328,10 @@ compute_level_breaks <- function(sf_obj) {
     break_stats(vals, df[[v]])
   })
 
-  # Raw SE counts: single series, so the scale and histogram come from one column.
-  counts <- purrr::map(purrr::set_names(se_count_cols), \(v) break_stats(df[[v]], df[[v]]))
+  # Raw SE counts and Attainability Index columns: single series (no raw/
+  # smoothed pair), so the scale and histogram come from one column.
+  single_vars <- c(se_count_cols, "attain_mf_share", "attain_renter_afford", "attainability_index")
+  counts <- purrr::map(purrr::set_names(single_vars), \(v) break_stats(df[[v]], df[[v]]))
 
   c(paired, counts)
 }

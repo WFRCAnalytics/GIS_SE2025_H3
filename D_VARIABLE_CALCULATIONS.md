@@ -391,6 +391,60 @@ income_diversity_l8 <- apply(bin_smoothed_l8, 1L, entropy_from_bins)
 
 **App display:** `RdYlGn9` palette, `invert: false`. Green = high entropy (diverse income mix), red = low entropy (dominated by one bracket). Score range 0–1.
 
+### 5c. Rental Housing Attainability Index
+
+A supplementary variable, additive alongside Demographics/Income Diversity rather than replacing them. Developed by Cascadia Partners with WFRC and UTA (Sep 2026) to give jurisdictions a more direct, policy-actionable lens on transit-supportive housing than income diversity alone: areas with more multifamily supply and less renter cost burden score higher, pointing at concrete levers (zoning reform, deed-restricted subsidy) rather than household demographics.
+
+Two equal-weight (½ each) 0–1 components, averaged and scaled to 0–100. Neither component is neighbor-smoothed — both are direct geographic lookups, not counts requiring the project's smoothing treatment.
+
+**Component 1 — Multifamily share:** WFRC Housing Unit Inventory (HUI), a parcel-level point dataset (`TYPE` = `multi_family` / `single_family`, `UNIT_COUNT`). For each hex, all HUI units within a `ATTAIN_MF_RADIUS_MI` (0.25 mi) buffer of the hex centroid are summed; `mf_share = mf_units / total_units`. `NA` when the buffer contains zero HUI units.
+
+```r
+mf_share_within_radius <- function(hex_sf, hui_sf, radius_mi = ATTAIN_MF_RADIUS_MI) {
+  buf <- sf::st_sf(
+    hex_id   = hex_sf$hex_id,
+    geometry = sf::st_buffer(sf::st_centroid(sf::st_geometry(hex_sf)), radius_mi * 1609.34)
+  )
+  sf::st_join(buf, sf::st_transform(hui_sf, sf::st_crs(hex_sf))) |>
+    sf::st_drop_geometry() |>
+    dplyr::group_by(hex_id) |>
+    dplyr::summarise(
+      mf_units    = sum(UNIT_COUNT[is_mf],    na.rm = TRUE),
+      total_units = sum(UNIT_COUNT, na.rm = TRUE),
+      .groups     = "drop"
+    ) |>
+    dplyr::transmute(hex_id, mf_share = dplyr::if_else(total_units > 0, mf_units / total_units, NA_real_))
+}
+```
+
+- **Source:** WFRC HUI FeatureServer (`hui_for_web2_gdb/FeatureServer/1`), fetched with `fields = c("TYPE", "UNIT_COUNT")` and pre-filtered by `COUNTY` to the region, since it's a ~645k-record statewide dataset
+- **Cache:** `_data/remote/demographics/hui.gpkg`
+- **Coverage note:** HUI has no records for Cache County — hexes there receive `NA`, consistent with the project's "no data ≠ zero" convention
+
+**Component 2 — Renter affordability:** ACS `B25070` (gross rent as % of household income), tract level. `renter_under_30 = (sum of "<10%" through "25.0–29.9%" categories) / (total renter HH − "not computed")`. Each hex is assigned the value of the tract its centroid falls in (point-in-polygon, not interpolated).
+
+```r
+renter_afford_by_tract <- function(hex_sf, tract_sf) {
+  centroids <- sf::st_sf(hex_id = hex_sf$hex_id, geometry = sf::st_centroid(sf::st_geometry(hex_sf)))
+  sf::st_join(centroids, sf::st_transform(tract_sf["renter_under_30_share"], sf::st_crs(hex_sf))) |>
+    sf::st_drop_geometry() |>
+    dplyr::distinct(hex_id, .keep_all = TRUE)
+}
+```
+
+- **Table:** `B25070` — Gross Rent as a Percentage of Household Income in the Past 12 Months
+- **Geography:** Census tract, 9-county WFRC/MAG study area
+- **Vintage:** 2019–2023 ACS 5-year estimates, fetched directly via `tidycensus::get_acs()` — not Esri Living Atlas, per UTA/WFRC agreement, to keep the region's demographic pulls on one consistent data path
+- **Cache:** `_data/remote/demographics/tract_renter_burden.gpkg`
+
+**Index:**
+
+```r
+attainability_index <- (attain_mf_share + attain_renter_afford) / 2 * 100
+```
+
+`NA` in either component propagates to `NA` for the index — no partial-credit averaging. Computed independently at L8 (against L8 hex geometry, same pattern as Design/Destinations) and L9, not aggregated from L9 to L8.
+
 ### 6. Distance to Transit
 
 Nearest-neighbor distance (miles) from each hex centroid to a frequent UTA transit stop, neighbor-smoothed. Frequent = weekday median headway ≤ 15 minutes, or GTFS `route_type` 1 or 2 (heavy/commuter rail).
@@ -403,7 +457,7 @@ Color classification for the web app uses **Fisher** (Fisher-Jenks natural break
 
 Breaks are computed pooled across both L8 and L9 values for each variable, stored in `_app/public/metadata.json`, and consumed by the app's `useData` hook. The number of break classes adapts to the number of unique quantile values in the variable (some variables in sparse areas have fewer than 9 distinct breaks).
 
-Variables included in `metadata.json` (29 total) — the 14 D variables plus the 15 raw SE counts:
+Variables included in `metadata.json` (32 total) — the 14 D variables, the 15 raw SE counts, and the 3 Attainability Index columns:
 ```
 density, diversity, design,
 destinations, destinations_center, destinations_health, destinations_school,
@@ -412,9 +466,10 @@ demographics, income_diversity, transit_dist,
 hhpop, households, residential_units, total_jobs,
 industrial_jobs, retail_jobs, office_jobs,
 jobs_accom_food, jobs_gov_edu, jobs_health, jobs_manuf,
-jobs_office, jobs_other, jobs_retail, jobs_wholesale
+jobs_office, jobs_other, jobs_retail, jobs_wholesale,
+attain_mf_share, attain_renter_afford, attainability_index
 ```
-D variables pool their smoothed + raw values onto one Fisher scale (so both swipe sides share a scale); raw SE counts are a single series, so their scale and histogram come from one column.
+D variables pool their smoothed + raw values onto one Fisher scale (so both swipe sides share a scale); raw SE counts and the Attainability Index columns are each a single series (no smoothed/raw pair), so their scale and histogram come from one column.
 
 ---
 
@@ -442,6 +497,9 @@ Each layer contains all original SE columns (the raw counts above) plus:
 | `demographics_smoothed` / `_raw` | Median HH income, $ |
 | `income_diversity_smoothed` / `_raw` | Income Diversity Index, 0–1 |
 | `transit_dist_smoothed` / `_raw` | Distance to frequent stop, miles |
+| `attain_mf_share` | Multifamily share within ¼ mi of centroid, 0–1 (no smoothed/raw pair) |
+| `attain_renter_afford` | Tract renter share paying <30% income on rent, 0–1 (no smoothed/raw pair) |
+| `attainability_index` | Rental Housing Attainability Index, 0–100 (no smoothed/raw pair) |
 
 ---
 
