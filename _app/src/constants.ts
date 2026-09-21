@@ -151,6 +151,35 @@ export const VARIABLE_CONFIGS: Record<DVariable, VariableConfig> = {
     formatValue: (v) => `${v.toFixed(2)} mi`,
   },
 
+  // ── Rental Housing Attainability Index (neighbor-smoothed, like the D variables) ──
+  attain_mf_share: {
+    label: 'MF Housing Share',
+    fullName: 'Multifamily Housing Share',
+    unit: 'ratio (0–1)',
+    description: 'Multifamily units as a share of all HUI units in the hex (neighbor-smoothed)',
+    palette: PuBuGn9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  attain_renter_afford: {
+    label: 'Renter Affordability',
+    fullName: 'Renter Cost-Burden Relief',
+    unit: 'ratio (0–1)',
+    description: 'Share of renter households paying under 30% of income on gross rent (ACS B25070, interpolated to hex, neighbor-smoothed)',
+    palette: BuPu9,
+    invert: false,
+    formatValue: (v) => v.toFixed(3),
+  },
+  attainability_index: {
+    label: 'Attainability Index',
+    fullName: 'Rental Housing Attainability Index',
+    unit: 'score (0–100)',
+    description: 'Equal-weight blend of multifamily housing share and renter affordability',
+    palette: RdYlGn9,
+    invert: false,
+    formatValue: (v) => v.toFixed(1),
+  },
+
   // ── Raw SE counts (single value — summed from L9 children at L8) ──────────────
   hhpop: {
     label: 'Population',
@@ -323,6 +352,10 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
     ],
   },
   {
+    label: 'Housing Attainability',
+    variables: ['attainability_index', 'attain_mf_share', 'attain_renter_afford'],
+  },
+  {
     label: 'Socioeconomic',
     variables: ['hhpop', 'households', 'residential_units', 'total_jobs'],
   },
@@ -346,6 +379,7 @@ export const D_VARIABLES: DVariable[] = [
   'destinations_center', 'destinations_health', 'destinations_school',
   'destinations_grocery', 'destinations_cityhall', 'destinations_park', 'destinations_ems',
   'demographics', 'income_diversity', 'transit_dist',
+  'attain_mf_share', 'attain_renter_afford', 'attainability_index',
 ];
 
 export const CARTO_POSITRON = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';

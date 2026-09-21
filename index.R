@@ -52,7 +52,8 @@ INCOME_TIER_MODE <- "regional_tertiles"
 # Rental Housing Attainability Index (Cascadia Partners / UTA methodology,
 # Sep 2026 — see email thread): equal-weight blend of MF housing supply
 # (WFRC Housing Unit Inventory) and renter cost-burden relief (ACS B25070).
-ATTAIN_MF_RADIUS_MI <- 0.25  # buffer radius around each hex centroid for HUI unit sum
+# Both components are hex-level raw counts, neighbor-ring smoothed the same
+# way as every other D variable (not a geometric buffer).
 
 # B25070 categories "Less than 10.0 percent" through "25.0 to 29.9 percent" —
 # the numerator for renter share paying under 30% of income on gross rent.
@@ -191,33 +192,39 @@ flag_presence <- function(hex_sf, features_sf) {
   as.integer(lengths(sf::st_intersects(hex_sf, ft)) > 0L)
 }
 
-# Buffers each hex centroid by radius_mi and sums HUI UNIT_COUNT within it;
-# mf_share = multifamily units / all units in that buffer. NA (not 0) when
-# the buffer contains zero HUI units — no data, not a confirmed zero share.
-mf_share_within_radius <- function(hex_sf, hui_sf, radius_mi = ATTAIN_MF_RADIUS_MI) {
-  buf <- sf::st_sf(
-    hex_id   = hex_sf$hex_id,
-    geometry = sf::st_buffer(sf::st_centroid(sf::st_geometry(hex_sf)), radius_mi * 1609.34)
-  )
-  sf::st_join(buf, sf::st_transform(hui_sf, sf::st_crs(hex_sf))) |>
+# Point-in-polygon: sums HUI UNIT_COUNT by whichever hex polygon each HUI
+# point actually falls inside (no buffer). Hexes with zero matching HUI
+# points get 0 (not NA) here — smoothing downstream is what recovers a
+# neighborhood-scale estimate; NA is applied later, only if the *smoothed*
+# total is still zero (genuinely no HUI data nearby, not just outside this cell).
+hui_units_by_hex <- function(hex_sf, hui_sf) {
+  sf::st_join(hex_sf["hex_id"], sf::st_transform(hui_sf, sf::st_crs(hex_sf))) |>
     sf::st_drop_geometry() |>
     dplyr::group_by(hex_id) |>
     dplyr::summarise(
-      mf_units    = sum(UNIT_COUNT[is_mf], na.rm = TRUE),
-      total_units = sum(UNIT_COUNT, na.rm = TRUE),
-      .groups     = "drop"
-    ) |>
-    dplyr::transmute(hex_id, mf_share = dplyr::if_else(total_units > 0, mf_units / total_units, NA_real_))
+      mf_units_raw    = sum(UNIT_COUNT[is_mf], na.rm = TRUE),
+      total_units_raw = sum(UNIT_COUNT, na.rm = TRUE),
+      .groups         = "drop"
+    )
 }
 
-# Each hex is assigned the value of the tract its centroid falls in (point-in-
-# polygon, not interpolated). A centroid landing exactly on a shared tract
-# boundary can join to more than one tract; distinct() keeps the first match.
-renter_afford_by_tract <- function(hex_sf, tract_sf) {
-  centroids <- sf::st_sf(hex_id = hex_sf$hex_id, geometry = sf::st_centroid(sf::st_geometry(hex_sf)))
-  sf::st_join(centroids, sf::st_transform(tract_sf["renter_under_30_share"], sf::st_crs(hex_sf))) |>
-    sf::st_drop_geometry() |>
-    dplyr::distinct(hex_id, .keep_all = TRUE)
+# Household-weighted areal interpolation of B25070 numerator/denominator
+# counts from tract polygons to hexes — same interpolate_pw() pattern as the
+# Income Diversity bin interpolation below, so a hex fully inside one tract
+# recovers that tract's exact ratio, while a hex straddling two tracts gets a
+# genuine household-weighted blend instead of an arbitrary single-tract pick.
+renter_burden_counts_to_hex <- function(hex_sf, tract_sf) {
+  interp <- tidycensus::interpolate_pw(
+    from             = sf::st_transform(tract_sf[, c("renter_under30_count", "renter_denom_count")], sf::st_crs(hex_sf)),
+    to               = hex_sf,
+    to_id            = "hex_id",
+    extensive        = TRUE,
+    weights          = hex_sf[, c("hex_id", "hh_weight")],
+    weight_column    = "hh_weight",
+    weight_placement = "surface"
+  )
+  sf::st_drop_geometry(interp) |>
+    dplyr::select(hex_id, renter_under30_count, renter_denom_count)
 }
 
 # Reads one USTM SE csv, renames USTM_FIELD_MAP columns to our schema, and
@@ -430,8 +437,12 @@ if (!file.exists(tract_renter_burden_path)) {
 } else {
   tract_renter_burden <- sf::read_sf(tract_renter_burden_path)
 }
-under30_sum <- rowSums(sf::st_drop_geometry(tract_renter_burden)[RENT_BURDEN_UNDER30_VARS], na.rm = TRUE)
+under30_sum  <- rowSums(sf::st_drop_geometry(tract_renter_burden)[RENT_BURDEN_UNDER30_VARS], na.rm = TRUE)
 renter_denom <- tract_renter_burden$B25070_001 - tract_renter_burden$B25070_011
+tract_renter_burden$renter_under30_count  <- under30_sum
+tract_renter_burden$renter_denom_count    <- renter_denom
+# Direct tract-level ratio (no interpolation) — not used downstream, kept as
+# the ground-truth reference for validating the interpolated hex-level ratio.
 tract_renter_burden$renter_under_30_share <- dplyr::if_else(renter_denom > 0, under30_sum / renter_denom, NA_real_)
 
 # Transit: UTA GTFS
@@ -817,16 +828,35 @@ bin_smoothed <- vapply(
 )
 income_diversity <- apply(bin_smoothed, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
-## Attainability Index — MF housing share (HUI) + renter affordability (B25070)
-attain_mf_share <- tibble::tibble(hex_id = hex_ids) |>
-  dplyr::left_join(mf_share_within_radius(se_hex, hui), by = "hex_id") |>
-  dplyr::pull(mf_share)
+## Attainability Index — MF housing share (HUI) + renter affordability
+## (B25070), both as hex-level raw counts, neighbor-smoothed the same way as
+## Income Diversity's bins above (smooth the counts, then compute the ratio).
 
-attain_renter_afford <- tibble::tibble(hex_id = hex_ids) |>
-  dplyr::left_join(renter_afford_by_tract(se_hex, tract_renter_burden), by = "hex_id") |>
-  dplyr::pull(renter_under_30_share)
+# MF share: point-in-hex HUI counts
+hui_hex <- tibble::tibble(hex_id = hex_ids) |>
+  dplyr::left_join(hui_units_by_hex(se_hex, hui), by = "hex_id") |>
+  dplyr::mutate(dplyr::across(c(mf_units_raw, total_units_raw), ~ tidyr::replace_na(.x, 0)))
 
-attainability_index <- (attain_mf_share + attain_renter_afford) / 2 * 100
+attain_mf_share_raw <- dplyr::if_else(hui_hex$total_units_raw > 0,
+  hui_hex$mf_units_raw / hui_hex$total_units_raw, NA_real_)
+
+mf_units_smoothed    <- smooth_by_neighbors(hex_ids, hui_hex$mf_units_raw,    neighbor_index)
+total_units_smoothed <- smooth_by_neighbors(hex_ids, hui_hex$total_units_raw, neighbor_index)
+attain_mf_share <- dplyr::if_else(total_units_smoothed > 0, mf_units_smoothed / total_units_smoothed, NA_real_)
+
+# Renter affordability: B25070 counts interpolated tract -> hex
+renter_hex <- tibble::tibble(hex_id = hex_ids) |>
+  dplyr::left_join(renter_burden_counts_to_hex(se_hex, tract_renter_burden), by = "hex_id")
+
+attain_renter_afford_raw <- dplyr::if_else(renter_hex$renter_denom_count > 0,
+  renter_hex$renter_under30_count / renter_hex$renter_denom_count, NA_real_)
+
+renter_num_smoothed <- smooth_by_neighbors(hex_ids, renter_hex$renter_under30_count, neighbor_index)
+renter_den_smoothed <- smooth_by_neighbors(hex_ids, renter_hex$renter_denom_count,   neighbor_index)
+attain_renter_afford <- dplyr::if_else(renter_den_smoothed > 0, renter_num_smoothed / renter_den_smoothed, NA_real_)
+
+attainability_index_raw <- (attain_mf_share_raw + attain_renter_afford_raw) / 2 * 100
+attainability_index     <- (attain_mf_share + attain_renter_afford) / 2 * 100
 
 ## Distance to Transit
 centroids        <- sf::st_centroid(sf::st_geometry(se_hex))
@@ -877,8 +907,11 @@ se_hex <- dplyr::mutate(
   income_diversity          = income_diversity,
   income_diversity_raw      = income_diversity_raw,
   attain_mf_share           = attain_mf_share,
+  attain_mf_share_raw       = attain_mf_share_raw,
   attain_renter_afford      = attain_renter_afford,
-  attainability_index       = attainability_index
+  attain_renter_afford_raw  = attain_renter_afford_raw,
+  attainability_index       = attainability_index,
+  attainability_index_raw   = attainability_index_raw
 )
 
 # ── 2. Level-8 Pipeline ────────────────────────────────────────────────────────
@@ -1017,15 +1050,31 @@ income_diversity_l8 <- apply(bin_smoothed_l8, 1L, income_diversity_from_tiers, t
 
 ## Attainability Index (L8) — recomputed directly against L8 hex geometry,
 ## same as Design/Destinations above, not aggregated from L9 children.
-attain_mf_share_l8 <- tibble::tibble(hex_id = h8_ids) |>
-  dplyr::left_join(mf_share_within_radius(se_l8, hui), by = "hex_id") |>
-  dplyr::pull(mf_share)
+hui_hex_l8 <- tibble::tibble(hex_id = h8_ids) |>
+  dplyr::left_join(hui_units_by_hex(se_l8, hui), by = "hex_id") |>
+  dplyr::mutate(dplyr::across(c(mf_units_raw, total_units_raw), ~ tidyr::replace_na(.x, 0)))
 
-attain_renter_afford_l8 <- tibble::tibble(hex_id = h8_ids) |>
-  dplyr::left_join(renter_afford_by_tract(se_l8, tract_renter_burden), by = "hex_id") |>
-  dplyr::pull(renter_under_30_share)
+attain_mf_share_raw_l8 <- dplyr::if_else(hui_hex_l8$total_units_raw > 0,
+  hui_hex_l8$mf_units_raw / hui_hex_l8$total_units_raw, NA_real_)
 
-attainability_index_l8 <- (attain_mf_share_l8 + attain_renter_afford_l8) / 2 * 100
+mf_units_smoothed_l8    <- smooth_by_neighbors(h8_ids, hui_hex_l8$mf_units_raw,    neighbor_index_l8)
+total_units_smoothed_l8 <- smooth_by_neighbors(h8_ids, hui_hex_l8$total_units_raw, neighbor_index_l8)
+attain_mf_share_l8 <- dplyr::if_else(total_units_smoothed_l8 > 0,
+  mf_units_smoothed_l8 / total_units_smoothed_l8, NA_real_)
+
+renter_hex_l8 <- tibble::tibble(hex_id = h8_ids) |>
+  dplyr::left_join(renter_burden_counts_to_hex(se_l8, tract_renter_burden), by = "hex_id")
+
+attain_renter_afford_raw_l8 <- dplyr::if_else(renter_hex_l8$renter_denom_count > 0,
+  renter_hex_l8$renter_under30_count / renter_hex_l8$renter_denom_count, NA_real_)
+
+renter_num_smoothed_l8 <- smooth_by_neighbors(h8_ids, renter_hex_l8$renter_under30_count, neighbor_index_l8)
+renter_den_smoothed_l8 <- smooth_by_neighbors(h8_ids, renter_hex_l8$renter_denom_count,   neighbor_index_l8)
+attain_renter_afford_l8 <- dplyr::if_else(renter_den_smoothed_l8 > 0,
+  renter_num_smoothed_l8 / renter_den_smoothed_l8, NA_real_)
+
+attainability_index_raw_l8 <- (attain_mf_share_raw_l8 + attain_renter_afford_raw_l8) / 2 * 100
+attainability_index_l8     <- (attain_mf_share_l8 + attain_renter_afford_l8) / 2 * 100
 
 ## Distance to Transit (L8)
 centroids_l8        <- sf::st_centroid(sf::st_geometry(se_l8))
@@ -1074,8 +1123,11 @@ se_l8 <- dplyr::mutate(
   income_diversity            = income_diversity_l8,
   income_diversity_raw        = income_diversity_raw_l8,
   attain_mf_share              = attain_mf_share_l8,
+  attain_mf_share_raw          = attain_mf_share_raw_l8,
   attain_renter_afford          = attain_renter_afford_l8,
-  attainability_index           = attainability_index_l8
+  attain_renter_afford_raw      = attain_renter_afford_raw_l8,
+  attainability_index           = attainability_index_l8,
+  attainability_index_raw       = attainability_index_raw_l8
 )
 
 # Destination scores are logically bounded [0, 1]; clamp any floating-point
@@ -1175,7 +1227,8 @@ gpkg_path <- file.path(root, "_output", paste0(GDB_NAME, ".gpkg"))
 
 # Rename smoothed D-variable columns to _smoothed so raw and smoothed names are
 # symmetric and unambiguous (density_smoothed / density_raw, etc.).
-d_vars <- c("density", "diversity", "design", "destinations", "demographics", "transit_dist", "income_diversity")
+d_vars <- c("density", "diversity", "design", "destinations", "demographics", "transit_dist", "income_diversity",
+            "attain_mf_share", "attain_renter_afford", "attainability_index")
 rename_smoothed <- function(sf_obj) {
   dplyr::rename_with(sf_obj, ~ paste0(.x, "_smoothed"), dplyr::all_of(d_vars))
 }
@@ -1228,7 +1281,9 @@ app_cols <- c(
   "demographics",     "demographics_raw",
   "transit_dist",     "transit_dist_raw",
   "income_diversity", "income_diversity_raw",
-  "attain_mf_share", "attain_renter_afford", "attainability_index"
+  "attain_mf_share",      "attain_mf_share_raw",
+  "attain_renter_afford", "attain_renter_afford_raw",
+  "attainability_index",  "attainability_index_raw"
 )
 
 # Raw SE counts (single value, no smoothed/raw pair) are explorable in the app
@@ -1248,9 +1303,11 @@ round_cols_4 <- c("diversity", "diversity_raw",
                    "destinations_park",    "destinations_park_raw",
                    "destinations_ems",     "destinations_ems_raw",
                    "income_diversity", "income_diversity_raw",
-                   "attain_mf_share", "attain_renter_afford")
+                   "attain_mf_share", "attain_mf_share_raw",
+                   "attain_renter_afford", "attain_renter_afford_raw")
 round_cols_2 <- c("density", "density_raw", "design", "design_raw",
-                   "transit_dist", "transit_dist_raw", "attainability_index")
+                   "transit_dist", "transit_dist_raw",
+                   "attainability_index", "attainability_index_raw")
 round_cols_0 <- c("demographics", "demographics_raw")
 round_cols_1 <- se_count_cols
 
@@ -1319,7 +1376,8 @@ compute_level_breaks <- function(sf_obj) {
     "destinations",
     "destinations_center", "destinations_health", "destinations_school",
     "destinations_grocery", "destinations_cityhall", "destinations_park", "destinations_ems",
-    "demographics", "transit_dist", "income_diversity"
+    "demographics", "transit_dist", "income_diversity",
+    "attain_mf_share", "attain_renter_afford", "attainability_index"
   )
   paired <- purrr::map(purrr::set_names(paired_vars), \(v) {
     vals <- c(df[[v]], df[[paste0(v, "_raw")]])
@@ -1328,10 +1386,9 @@ compute_level_breaks <- function(sf_obj) {
     break_stats(vals, df[[v]])
   })
 
-  # Raw SE counts and Attainability Index columns: single series (no raw/
-  # smoothed pair), so the scale and histogram come from one column.
-  single_vars <- c(se_count_cols, "attain_mf_share", "attain_renter_afford", "attainability_index")
-  counts <- purrr::map(purrr::set_names(single_vars), \(v) break_stats(df[[v]], df[[v]]))
+  # Raw SE counts: single series (no raw/smoothed pair), so the scale and
+  # histogram come from one column.
+  counts <- purrr::map(purrr::set_names(se_count_cols), \(v) break_stats(df[[v]], df[[v]]))
 
   c(paired, counts)
 }

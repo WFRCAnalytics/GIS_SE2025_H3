@@ -16,6 +16,9 @@ export type DVariable =
   | 'demographics'
   | 'transit_dist'
   | 'income_diversity'
+  | 'attain_mf_share'
+  | 'attain_renter_afford'
+  | 'attainability_index'
   // Raw SE counts — single value, no smoothed/raw distinction
   | 'hhpop'
   | 'households'
@@ -66,6 +69,9 @@ export interface PopupData {
   demographics: number | null;               demographics_raw: number | null;
   transit_dist: number | null;               transit_dist_raw: number | null;
   income_diversity: number | null;           income_diversity_raw: number | null;
+  attain_mf_share: number | null;            attain_mf_share_raw: number | null;
+  attain_renter_afford: number | null;       attain_renter_afford_raw: number | null;
+  attainability_index: number | null;        attainability_index_raw: number | null;
   // Raw SE counts — single value (no _raw counterpart)
   hhpop: number | null;
   households: number | null;
