@@ -1,6 +1,6 @@
 # SE 2025 Urban Form D Variables (H3)
 
-Calculates six **D variables** — a standard framework for measuring urban form and its relationship to travel behavior — for the WFRC/MAG region at H3 level-9 hexagon resolution using WFRC SE 2025 socioeconomic data. Each variable is available at two H3 resolutions (level 8 and level 9) and as both a smoothed and a raw value. The Destinations variable additionally exposes seven sub-component columns (one per amenity type). The Demographics dimension includes two measures: median household income and the Income Diversity Index.
+Calculates six **D variables** — a standard framework for measuring urban form and its relationship to travel behavior — for the WFRC/MAG region at H3 level-9 hexagon resolution using WFRC SE 2025 socioeconomic data. Each variable is available at two H3 resolutions (level 8 and level 9) and as both a smoothed and a raw value. The Destinations variable additionally exposes seven sub-component columns (one per amenity type). The Demographics dimension includes two measures: median household income and the Income Diversity Index. A supplementary **Rental Housing Attainability Index**, developed by Cascadia Partners with WFRC and UTA, is also included alongside the six core variables.
 
 The raw SE inputs (population, households, residential units, total jobs, and the full job-sector breakdown) are also carried straight through to the output and are explorable in the app alongside the calculated D variables. These plain counts are *not* smoothed — at level 8 each is simply the sum of its seven level-9 children (see [Level 8 aggregation](#level-8-aggregation)).
 
@@ -15,6 +15,7 @@ The raw SE inputs (population, households, residential units, total jobs, and th
 | 5 | **Demographics** | Socioeconomic Status | Median household income as an equity lens |
 | 5b | **Income Diversity** | Income Diversity Index | Whether households from lower-, middle-, and higher-income groups all coexist; 0 = only one income group present, 1 = all three groups equally represented |
 | 6 | **Distance to Transit** | Transit Access | Distance to the nearest frequent-service transit stop |
+| 5c | **Rental Housing Attainability Index** | Rental Housing Attainability | Supplementary index blending multifamily housing supply and renter cost-burden relief; 0 = least attainable, 100 = most attainable |
 
 The D-variable framework originates from Cervero & Kockelman (1997) and has been refined by Ewing & Cervero (2010). These six dimensions collectively describe the built environment features most strongly associated with mode choice and vehicle miles traveled.
 
@@ -206,6 +207,23 @@ Hexes with no households receive `NA`.
 
 ---
 
+### 5c. Rental Housing Attainability Index
+
+**What it captures:** A supplementary, policy-actionable lens on transit-supportive housing, developed by Cascadia Partners with WFRC and UTA (Sep 2026). It sits alongside Demographics/Income Diversity rather than replacing them — areas with more multifamily housing supply and less renter cost burden score higher, pointing at concrete levers (zoning reform, deed-restricted subsidy) rather than household demographics.
+
+Two equal-weight components, averaged and scaled to 0–100:
+
+- **Multifamily share** — share of WFRC Housing Unit Inventory (HUI) units in the hex that are multifamily (point-in-hex count, no buffer).
+- **Renter affordability** — share of renter households paying less than 30% of income on gross rent (ACS `B25070`), interpolated from tract polygons to hexes.
+
+```
+attainability_index = (attain_mf_share + attain_renter_afford) / 2 * 100
+```
+
+Both components follow the project's standard smoothing principle: compute a hex-level raw count, neighbor-smooth the counts, *then* divide to get the ratio — the same approach used for Income Diversity's bin smoothing. `NA` in either component propagates to `NA` for the index. Computed independently at L8 and L9 (not aggregated from L9 to L8). See [D_VARIABLE_CALCULATIONS.md](D_VARIABLE_CALCULATIONS.md#5c-rental-housing-attainability-index) for the full formula, data sources, and the buffer-vs-point-in-hex methodology note.
+
+---
+
 ### 6. Distance to Transit — Transit Access
 
 **What it captures:** How accessible transit is on foot from a given location. Only **frequent** service is measured — infrequent buses running every hour are not a genuine travel alternative for most trips. Shorter distances indicate that transit is a viable option for daily travel.
@@ -255,6 +273,8 @@ WC_CENTER_WEIGHTS <- c(   # Edit freely to add/remove/reclassify center types
 | ACS median HH income | `B19013_001` | tidycensus | `_data/remote/demographics/bg_income.gpkg` |
 | ACS income distribution (16 brackets) | `B19001_002`–`B19001_017` | tidycensus | `_data/remote/demographics/bg_income_dist.gpkg` |
 | 2020 Census HH weights | `H1_002N` | tidycensus | `_data/remote/demographics/blocks_2020_hh.gpkg` |
+| WFRC Housing Unit Inventory (multifamily share) | — | ArcGIS REST | `_data/remote/demographics/hui.gpkg` |
+| ACS renter cost burden (tract) | `B25070` | tidycensus | `_data/remote/demographics/tract_renter_burden.gpkg` |
 | UTA GTFS | — | download.file | `_data/remote/transit/` |
 | Utah county boundaries | — | tigris | `_data/remote/boundaries/` |
 
@@ -293,7 +313,7 @@ tidycensus::census_api_key("YOUR_KEY", install = TRUE)
 Open the project and source `index.R` (RStudio, Positron, or `Rscript index.R` from a terminal). The script will:
 
 1. Fetch and cache all remote data (first run only — subsequent runs load from cache)
-2. Calculate all six D variables, seven Destinations sub-components, and Income Diversity Index at both H3 level 8 and level 9
+2. Calculate all six D variables, seven Destinations sub-components, Income Diversity Index, and the Rental Housing Attainability Index at both H3 level 8 and level 9
 3. Export `_output/wfrc_se_2025_rtp23.gdb.zip` with all original SE columns (summed to L8 from L9 children) plus D variable columns
 4. Export PMTiles (`_app/public/data/l9.pmtiles`, `_app/public/data/l8.pmtiles`) and `_app/public/data/metadata.json` for the web app
 
@@ -319,6 +339,12 @@ The GDB contains two layers — `{GDB_NAME}_l9` (H3 level-9) and `{GDB_NAME}_l8`
 | `income_diversity_raw` | numeric | Income Diversity Index 0–1 (raw) |
 | `transit_dist_smoothed` | numeric | Distance to nearest frequent stop, miles (smoothed) |
 | `transit_dist_raw` | numeric | Distance to nearest frequent stop, miles (raw) |
+| `attain_mf_share_smoothed` | numeric | Multifamily share of HUI units in the hex, 0–1 (smoothed) |
+| `attain_mf_share_raw` | numeric | Multifamily share of HUI units in the hex, 0–1 (raw) |
+| `attain_renter_afford_smoothed` | numeric | Renter share paying <30% income on rent (B25070), 0–1 (smoothed) |
+| `attain_renter_afford_raw` | numeric | Renter share paying <30% income on rent (B25070), 0–1 (raw) |
+| `attainability_index_smoothed` | numeric | Rental Housing Attainability Index, 0–100 (smoothed) |
+| `attainability_index_raw` | numeric | Rental Housing Attainability Index, 0–100 (raw) |
 
 ### Destinations sub-components
 
