@@ -26,19 +26,26 @@ Section headers in the script use `# ── Section Name ───────�
 ## Parameters
 
 ```r
-GDB_NAME      <- "wfrc_se_2025_rtp23"
-J2H           <- 1.8      # Jobs-to-Household ratio for WFRC/MAG region
-HEX_AREA_SQMI <- 0.0406   # Fixed area of H3 level-9 hex in square miles
+GDB_NAME          <- "wfrc_se_2025_rtp23"
+J2H               <- 1.8      # Jobs-to-Household ratio for WFRC/MAG region
+L9_HEX_AREA_SQMI  <- 0.0406   # Fixed area of H3 level-9 hex in square miles
+L8_HEX_AREA_SQMI  <- 0.2847   # Fixed area of H3 level-8 hex in square miles
 
-CENTER_WEIGHT <- 0.4
-RING1_WEIGHT  <- 0.3
-RING2_WEIGHT  <- 0.2
-RING3_WEIGHT  <- 0.1
+# Neighbor-smoothing kernels are level-specific, not shared: L9 smooths out to
+# ring 3, while L8 only pulls in ring 1 (rings 2/3 weighted 0).
+L9_WEIGHTS <- c(center = 0.4, ring1 = 0.3, ring2 = 0.2, ring3 = 0.1)
+L8_WEIGHTS <- c(center = 0.5, ring1 = 0.5, ring2 = 0.0, ring3 = 0.0)
 
-stopifnot(isTRUE(all.equal(CENTER_WEIGHT + RING1_WEIGHT + RING2_WEIGHT + RING3_WEIGHT, 1)))
+stopifnot(isTRUE(all.equal(sum(L9_WEIGHTS), 1)))
+stopifnot(isTRUE(all.equal(sum(L8_WEIGHTS), 1)))
 
-# ACS B19001 income distribution bins (B19001_002 … B19001_012)
-INCOME_BINS <- sprintf("B19001_%03d", 2:12)
+# ACS B19001 income distribution bins (B19001_002 … B19001_017), all 16 brackets
+INCOME_BINS <- sprintf("B19001_%03d", 2:17)
+
+# Income Diversity tier mode — "regional_tertiles" derives Low/Mid/High
+# breakpoints from the data (33rd/67th percentile of regional households);
+# "ami_single"/"ami_county" use a fixed INCOME_TIER_BREAKS override instead.
+INCOME_TIER_MODE <- "regional_tertiles"
 ```
 
 ---
@@ -75,14 +82,13 @@ fetch_or_cache <- function(url, cache_path, layer = NULL, where = NULL) {
 - The cache always stores the complete dataset. Filters are pushed to the SQL query at read time, not baked into the cache, so they are cheap to change.
 - Passing `layer = NULL` explicitly would crash `sf::read_sf` (triggers `enc2utf8(layer)`) — always branch on `is.null(layer)`.
 
-### `build_neighbor_index(hex_ids, k = 3)`
+### `build_neighbor_index(hex_ids, weights)`
 
-Returns a data frame with columns `center_id`, `member_id`, `ring`, `weight` for the k-ring neighborhood of every hex in `hex_ids`.
+Returns a data frame with columns `center_id`, `member_id`, `ring`, `weight` for the k-ring neighborhood of every hex in `hex_ids`. `weights` is `L9_WEIGHTS` or `L8_WEIGHTS` — a named vector `c(center, ring1, ring2, ring3)`.
 
-- Uses `h3o::grid_disk()` + `h3o::grid_distances()` with `k = 3`
-- Weights: ring 0 → `CENTER_WEIGHT`; ring *n* → `RING_n_WEIGHT / count_of_ring_n_neighbors_for_that_center`
-- Per-ring neighbor counts are computed per center cell — edge cells have fewer neighbors
-- Members not present in `hex_ids` are dropped (study-area boundary)
+- `k` is derived automatically as the last ring with a non-zero weight (3 for `L9_WEIGHTS`, 1 for `L8_WEIGHTS`), via `h3o::grid_disk()` + `h3o::grid_distances()`
+- Weights: ring 0 → `weights["center"]`; ring *n* → `weights[paste0("ring", n)] / (6 × n)` — `6 × n` is the *theoretical* size of a full ring *n* (a fixed constant), not the number of that center's neighbors actually present
+- Members not present in `hex_ids` are dropped (study-area boundary) — since the per-neighbor weight is fixed rather than recomputed from the surviving count, edge cells receive less than the full ring weight instead of having it redistributed among fewer neighbors
 
 ### `smooth_by_neighbors(hex_ids, values, neighbor_index)`
 
@@ -94,27 +100,28 @@ Implementation: join `values` onto `neighbor_index` by `member_id`, multiply by 
 
 Returns an integer vector (same length and order as `hex_sf`) where each element is 1 if any feature in `features_sf` intersects the hex, 0 otherwise.
 
-### `entropy_from_bins(counts)`
+### `income_diversity_from_tiers(counts, tier_breaks)`
 
-Computes the **Shannon entropy diversity index** for an income distribution represented as household counts in 11 discrete income brackets. Returns a value in [0, 1] normalized by the maximum possible entropy for 11 brackets.
+Computes the **3-tier min/max diversity score** for an income distribution represented as household counts in the 16 ACS B19001 brackets, grouped into Low/Mid/High tiers at the bracket indices given by `tier_breaks`.
 
 ```r
-entropy_from_bins <- function(counts) {
+income_diversity_from_tiers <- function(counts, tier_breaks) {
   counts[is.na(counts) | counts < 0] <- 0
-  total <- sum(counts)
-  if (total == 0) return(NA_real_)
-  p <- counts[counts > 0] / total
-  -sum(p * log(p)) / log(length(counts))
+  if (sum(counts) == 0) return(NA_real_)
+  low  <- sum(counts[seq_len(tier_breaks["low_max"])])
+  mid  <- sum(counts[seq(tier_breaks["low_max"] + 1L, tier_breaks["mid_max"])])
+  high <- sum(counts[seq(tier_breaks["mid_max"] + 1L, length(counts))])
+  min(low, mid, high) / max(low, mid, high)
 }
 ```
 
-**Algorithm:** Shannon entropy `H = −Σ pᵢ ln(pᵢ)` summed over non-empty brackets (zero-count brackets contribute 0 by convention and are excluded). Divided by `ln(11)` — the theoretical maximum when all 11 brackets are equally populated — to normalize to [0, 1].
+**Algorithm:** sums household counts into three tiers using `tier_breaks = c(low_max, mid_max)`, then scores `min(low, mid, high) / max(low, mid, high)`. Works directly on raw tier counts rather than shares — the shared `/total` divisor cancels out of a min/max ratio, so dividing into shares first would give an identical result.
 
-- **0** — all households in exactly one bracket (no income diversity)
-- **1** — households perfectly evenly spread across all 11 brackets (maximum diversity)
-- **Higher is better.** Dollar amounts are irrelevant; only the shape of the distribution matters.
+- **0** — at least one tier has zero households (that income group has no housing in this area)
+- **1** — all three tiers have equal household counts (a genuine cross-section of the region)
+- Returns `NA` when total households across all 16 brackets is 0 (no data, not "no diversity")
 
-See [Income Diversity Index](#5b-income-diversity-index) for full methodology.
+This replaced an earlier Shannon-entropy-over-11-brackets formulation, which produced scores that clustered near the top and were hard to interpret. See [Income Diversity Index](#5b-income-diversity-index) for full methodology, including how `tier_breaks` is derived.
 
 ---
 
@@ -192,7 +199,7 @@ ems_stations <- fetch_or_cache(
 # 2020 Census block-level occupied housing units — cached to blocks_2020_hh.gpkg
 # Both fetched via tidycensus directly (not fetch_or_cache)
 
-# ACS 5-year income distribution (11 household count bins) — cached to bg_income_dist.gpkg
+# ACS 5-year income distribution (16 household count bins) — cached to bg_income_dist.gpkg
 bg_income_dist_path <- file.path(root, "_data/remote/demographics/bg_income_dist.gpkg")
 if (!file.exists(bg_income_dist_path)) {
   bg_income_dist <- tidycensus::get_acs(
@@ -200,7 +207,7 @@ if (!file.exists(bg_income_dist_path)) {
     variables = c("B19001_001", INCOME_BINS),
     state     = "UT",
     county    = c("Box Elder", "Davis", "Weber", "Salt Lake", "Utah",
-                  "Tooele", "Morgan", "Summit", "Wasatch"),
+                  "Tooele", "Morgan", "Summit", "Wasatch", "Cache"),
     year = 2023, output = "wide", geometry = TRUE
   ) |>
     dplyr::select(GEOID, dplyr::ends_with("E"), geometry) |>
@@ -211,7 +218,7 @@ if (!file.exists(bg_income_dist_path)) {
 }
 ```
 
-The B19001 ACS table provides household **counts** (not percentages or medians) for 11 income brackets. See [Income Diversity Index](#5b-income-diversity-index) for bracket definitions.
+The B19001 ACS table provides household **counts** (not percentages or medians) for 16 income brackets. See [Income Diversity Index](#5b-income-diversity-index) for bracket definitions.
 
 > **Note on geometry column name:** `sf::write_sf` writes GPKG files with the geometry column named `"geom"` (GDAL default). When reading back via `sf::read_sf`, the active geometry column retains that name. `dplyr::select()` on an sf object automatically retains the active geometry — never name the geometry column explicitly in `select()` calls, as the name may differ between fresh download and cached read.
 
@@ -240,10 +247,10 @@ utah_counties <- fetch_or_cache(
 ### 1. Density
 
 ```
-density = (smoothed_residential_units + smoothed_total_jobs / J2H) / HEX_AREA_SQMI
+density = (smoothed_residential_units + smoothed_total_jobs / J2H) / L9_HEX_AREA_SQMI   # L8 uses L8_HEX_AREA_SQMI
 ```
 
-Hexes in Tooele, Morgan, Summit, and Wasatch counties are set to `NA` — pending methodology guidance for those areas.
+Box Elder, Tooele, Morgan, Cache, Summit, and Wasatch counties are populated via the USTM TAZ expansion (see [Areas outside the WF Model region](README.md#areas-outside-the-wf-model-region)), not excluded. A hex is `NA` only if it ends up with genuinely no real SE data — tracked in `no_se_data_hex_ids` — which today means a hex added by that expansion that still has zero TAZ overlap (e.g. a sliver right at a boundary edge). An L8 hex is `NA` if any of its L9 children lack real SE data.
 
 ### 2. Diversity
 
@@ -312,30 +319,53 @@ ACS 5-year median household income (B19013_001, 2023) interpolated from block-gr
 
 ### 5b. Income Diversity Index
 
-Measures whether households from many different income levels coexist within a neighborhood, using the **Shannon entropy** formula. A high score means income is spread across many brackets; a low score means one bracket dominates — regardless of whether it is a high-income or low-income bracket. This framing avoids penalizing high-income areas for being affluent; instead, it rewards the presence of housing accessible to a range of income levels.
+Measures whether households from lower-, middle-, and higher-income tiers all coexist within a neighborhood, using a **3-tier min/max ratio**. A high score means all three tiers are present in roughly equal numbers; a low score means one or more tiers are scarce or absent — regardless of whether the neighborhood is uniformly high-income or uniformly low-income. This framing avoids penalizing high-income areas for being affluent; instead, it rewards the presence of housing accessible to a range of income levels.
+
+> This replaced an earlier Shannon-entropy formulation over the raw 11-bracket distribution, which produced scores that clustered near the top of the range and were hard to interpret. Grouping into three tiers derived from the region's own income distribution gives a more legible score.
 
 ```
-H  = −Σᵢ pᵢ × ln(pᵢ)         (non-empty brackets only; 0 × ln(0) ≡ 0)
-income_diversity = H / ln(11)  (normalized to 0–1)
+low, mid, high    = household counts summed into three tiers (tier_breaks below)
+income_diversity  = min(low, mid, high) / max(low, mid, high)
 ```
 
-**Higher is better** (score → 1 = all 11 brackets equally represented). No income midpoints are used — only the *shape* of the distribution matters. Hexes with no households → `NA`.
+**Higher is better** (score → 1 = all three tiers equally represented; score = 0 if any tier is empty). Hexes with no households → `NA`. See `income_diversity_from_tiers` in [Helper Functions](#helper-functions).
+
+**Tier breakpoints (`income_tier_breaks`):** controlled by `INCOME_TIER_MODE`.
+
+- **`"regional_tertiles"`** (default) — bracket indices where the *regional* cumulative household share (summed across all 16 brackets, region-wide) crosses 1/3 and 2/3. Each tier therefore represents roughly an equal share of regional households, and boundaries shift automatically if the ACS vintage changes.
+- **`"ami_single"` / `"ami_county"`** — use the fixed `INCOME_TIER_BREAKS <- c(low_max, mid_max)` override instead.
+
+```r
+income_tier_breaks <- if (INCOME_TIER_MODE == "regional_tertiles") {
+  regional_totals <- sf::st_drop_geometry(bg_income_dist) |>
+    dplyr::summarise(dplyr::across(dplyr::all_of(INCOME_BINS), \(x) sum(x, na.rm = TRUE))) |>
+    unlist()
+  cum_pct <- cumsum(regional_totals) / sum(regional_totals)
+  n       <- length(cum_pct)
+  c(
+    low_max = max(1L, min(findInterval(1/3, cum_pct), n - 2L)),
+    mid_max = max(2L, min(findInterval(2/3, cum_pct), n - 1L))
+  )
+} else {
+  INCOME_TIER_BREAKS
+}
+```
 
 **ACS data source:**
 
 - **Table:** `B19001` — Household Income in the Past 12 Months (in inflation-adjusted dollars)
-- **Geography:** Block group, state of Utah (9-county WFRC/MAG study area)
+- **Geography:** Block group, state of Utah (9-county WFRC/MAG study area, including Cache)
 - **Vintage:** 2019–2023 ACS 5-year estimates
 - **Cache:** `_data/remote/demographics/bg_income_dist.gpkg`
 
-The table provides household **counts** for 11 income brackets (`B19001_002` through `B19001_012`). See `entropy_from_bins` in [Helper Functions](#helper-functions).
+The table provides household **counts** for all 16 income brackets (`B19001_002` through `B19001_017`).
 
 **Smoothing:** Following the project's principle of smoothing *inputs* before applying the formula:
 
 **L9 calculation:**
 
 ```r
-# 1. Interpolate all 11 bin counts from block groups to H3 hexes
+# 1. Interpolate all 16 bin counts from block groups to H3 hexes
 bg_bins <- bg_income_dist |>
   sf::st_transform(hex_crs) |>
   dplyr::select(dplyr::all_of(INCOME_BINS))
@@ -343,8 +373,8 @@ bg_bins <- bg_income_dist |>
 hex_income_dist <- tidycensus::interpolate_pw(
   from = bg_bins, to = se_hex, to_id = "hex_id",
   extensive = TRUE,
-  weights = se_hex[, c("hex_id", "households")],
-  weight_column = "households", weight_placement = "surface"
+  weights = se_hex[, c("hex_id", "hh_weight")],
+  weight_column = "hh_weight", weight_placement = "surface"
 )
 
 bin_matrix <- sf::st_drop_geometry(hex_income_dist) |>
@@ -353,21 +383,21 @@ bin_matrix <- sf::st_drop_geometry(hex_income_dist) |>
   dplyr::select(dplyr::all_of(INCOME_BINS)) |>
   as.matrix()
 
-# 2. Raw value: entropy from unsmoothed bin counts
-income_diversity_raw <- apply(bin_matrix, 1L, entropy_from_bins)
+# 2. Raw value: tier score from unsmoothed bin counts
+income_diversity_raw <- apply(bin_matrix, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
-# 3. Smoothed value: smooth each bin independently, then compute entropy
+# 3. Smoothed value: smooth each bin independently, then compute the tier score
 bin_smoothed <- vapply(
   seq_len(ncol(bin_matrix)),
   function(i) smooth_by_neighbors(hex_ids, bin_matrix[, i], neighbor_index),
   numeric(length(hex_ids))
 )
-income_diversity <- apply(bin_smoothed, 1L, entropy_from_bins)
+income_diversity <- apply(bin_smoothed, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 ```
 
-`vapply` returns an `n_hexes × 11` matrix (one column per bin); `apply(..., 1L, ...)` iterates row-wise.
+`vapply` returns an `n_hexes × 16` matrix (one column per bin); `apply(..., 1L, ...)` iterates row-wise.
 
-**L8 calculation:** Aggregate L9 bin counts to L8 by summing each bin within each L8 parent, then apply the same smooth → entropy pattern. No second `interpolate_pw` call needed.
+**L8 calculation:** Aggregate L9 bin counts to L8 by summing each bin within each L8 parent, then apply the same smooth → tier-score pattern. No second `interpolate_pw` call needed.
 
 ```r
 bin_df_l8 <- as.data.frame(bin_matrix)
@@ -379,17 +409,17 @@ bin_df_l8 <- bin_df_l8 |>
 
 bin_matrix_l8 <- bin_df_l8[match(h8_ids, bin_df_l8$h8_id), INCOME_BINS] |> as.matrix()
 
-income_diversity_raw_l8 <- apply(bin_matrix_l8, 1L, entropy_from_bins)
+income_diversity_raw_l8 <- apply(bin_matrix_l8, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 
 bin_smoothed_l8 <- vapply(
   seq_len(ncol(bin_matrix_l8)),
   function(i) smooth_by_neighbors(h8_ids, bin_matrix_l8[, i], neighbor_index_l8),
   numeric(length(h8_ids))
 )
-income_diversity_l8 <- apply(bin_smoothed_l8, 1L, entropy_from_bins)
+income_diversity_l8 <- apply(bin_smoothed_l8, 1L, income_diversity_from_tiers, tier_breaks = income_tier_breaks)
 ```
 
-**App display:** `RdYlGn9` palette, `invert: false`. Green = high entropy (diverse income mix), red = low entropy (dominated by one bracket). Score range 0–1.
+**App display:** `RdYlGn9` palette, `invert: false`. Green = high diversity score (all three tiers represented), red = low score (one or more tiers scarce/absent). Score range 0–1.
 
 ### 5c. Rental Housing Attainability Index
 
@@ -426,7 +456,7 @@ attain_mf_share <- dplyr::if_else(total_units_smoothed > 0, mf_units_smoothed / 
 - **Cache:** `_data/remote/demographics/hui.gpkg`
 - **Coverage note:** HUI has no records for Cache County — hexes there receive `NA` once smoothing has pulled in every neighbor and still found nothing, consistent with the project's "no data ≠ zero" convention
 
-**Component 2 — Renter affordability:** ACS `B25070` (gross rent as % of household income), tract level. `renter_under30_count` = sum of "<10%" through "25.0–29.9%" categories; `renter_denom_count` = total renter HH − "not computed". Both counts are interpolated from tract polygons to hexes (household-weighted areal interpolation, identical `interpolate_pw()` pattern to the Income Diversity bin interpolation) rather than a hard "hex inherits its containing tract's value" lookup — a hex fully inside one tract recovers that tract's exact ratio (verified: max floating-point diff `2.2e-16` across 11,847 single-tract hexes), while a hex straddling two tracts gets a genuine household-weighted blend instead of an arbitrary single-tract pick.
+**Component 2 — Renter affordability:** ACS `B25070` (gross rent as % of household income), tract level. `renter_under30_count` = sum of "<10%" through "25.0–29.9%" categories; `renter_denom_count` = total renter HH − "not computed". Both counts are interpolated from tract polygons to hexes (household-weighted areal interpolation, identical `interpolate_pw()` pattern to the Income Diversity bin interpolation) rather than a hard "hex inherits its containing tract's value" lookup — a hex fully inside one tract recovers that tract's exact ratio (re-verified directly against `_output/wfrc_se_2025_rtp23.gpkg`: max floating-point diff `2.220446e-16` across hexes fully contained in one tract; the hex count itself shifts run to run as the expansion counties grow, so treat any specific count here as a snapshot, not a fixed fact), while a hex straddling two tracts gets a genuine household-weighted blend instead of an arbitrary single-tract pick.
 
 ```r
 renter_burden_counts_to_hex <- function(hex_sf, tract_sf) {
@@ -520,7 +550,7 @@ Each layer contains all original SE columns (the raw counts above) plus:
 
 ## PMTiles & Metadata Export
 
-PMTiles are generated via the `freestiler` R package directly from the sf objects. The `metadata.json` file is written at the end of `index.R` with pre-computed Fisher break values for all 29 variables at both L8 and L9. Re-running `index.R` regenerates both PMTiles and metadata atomically.
+PMTiles are generated via the `freestiler` R package directly from the sf objects. The `metadata.json` file is written at the end of `index.R` with pre-computed Fisher break values for all 32 variables (see [Classification Breaks](#classification-breaks)) at both L8 and L9. Re-running `index.R` regenerates both PMTiles and metadata atomically.
 
 ---
 
